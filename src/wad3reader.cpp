@@ -11,9 +11,9 @@
 
 Wad3Reader* ReadWad(const char* filepath)
 {
-    Wad3Header* header = new Wad3Header;
-    Wad3MipTex* miptex = new Wad3MipTex;
-    Wad3DirEntry* currentDirEntry;
+    Wad3Header header{};
+    Wad3MipTex miptex{};
+    Wad3DirEntry currentDirEntry{};
     textureMap textures;
 
     std::ifstream file(filepath, std::ios::in | std::ios::binary | std::ios::ate);
@@ -24,54 +24,54 @@ Wad3Reader* ReadWad(const char* filepath)
     }
 
     file.seekg(0, std::ios::beg);
-    file.read((char*)header, sizeof(Wad3Header));
+    file.read((char*)&header, sizeof(Wad3Header));
 
-    if (strncmp((*header).szMagic, "WAD3", 4))
+    if (strncmp(header.szMagic, "WAD3", 4))
     {
         file.close();
         throw std::runtime_error("Invalid file type");
     }
 
-    textures.reserve((*header).nDir);
+    textures.reserve(header.nDir);
 
-    Wad3DirEntry* dirEntries = new Wad3DirEntry[(*header).nDir];
+    Wad3DirEntry* dirEntries = new Wad3DirEntry[header.nDir];
 
-    file.seekg((*header).nDirOffset, std::ios::beg);
-    file.read((char*)dirEntries, sizeof(Wad3DirEntry) * (*header).nDir);
+    file.seekg(header.nDirOffset, std::ios::beg);
+    file.read((char*)dirEntries, sizeof(Wad3DirEntry) * header.nDir);
 
     std::string name;
     name.reserve(MAXTEXTURENAME);
 
-    for (int i = 0; i < (*header).nDir; i++)
+    for (int i = 0; i < header.nDir; i++)
     {
-        currentDirEntry = &dirEntries[i];
-        name = std::string((*currentDirEntry).szName);
+        currentDirEntry = dirEntries[i];
+        name = std::string(currentDirEntry.szName);
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
-        if ((*currentDirEntry).nType != ENTRY_TYPE::MIPTEX)
+        if (currentDirEntry.nType != ENTRY_TYPE::MIPTEX)
         {
             continue;
         }
 
-        file.seekg((*currentDirEntry).nFilePos, std::ios::beg);
-        file.read((char*)miptex, sizeof(Wad3MipTex));
+        file.seekg(currentDirEntry.nFilePos, std::ios::beg);
+        file.read((char*)&miptex, sizeof(Wad3MipTex));
 
-        if (static_cast<size_t>((*miptex).nWidth * (*miptex).nHeight) > MAXMIPTEXSIZE)
+        if (static_cast<size_t>(miptex.nWidth * miptex.nHeight) > MAXMIPTEXSIZE)
         {
-            throw std::runtime_error("Unexpected size for texture '" + std::string((*currentDirEntry).szName) + "'");
+            throw std::runtime_error("Unexpected size for texture '" + std::string(currentDirEntry.szName) + "'");
         }
 
 
         textures[name] = new MMData;
-        (*textures[name]).width = (*miptex).nWidth;
-        (*textures[name]).height = (*miptex).nHeight;
-        (*textures[name]).data = new unsigned char[(*miptex).nWidth * (*miptex).nHeight];
+        (*textures[name]).width = miptex.nWidth;
+        (*textures[name]).height = miptex.nHeight;
+        (*textures[name]).data = new unsigned char[miptex.nWidth * miptex.nHeight];
 
-        file.read((char*)(*textures[name]).data, static_cast<std::streamsize>((*miptex).nWidth) * (*miptex).nHeight);
+        file.read((char*)(*textures[name]).data, static_cast<std::streamsize>(miptex.nWidth) * miptex.nHeight);
 
-        file.seekg(static_cast<std::streamsize>((*miptex).nWidth >> 1) * ((*miptex).nHeight >> 1), std::ios::cur);
-        file.seekg(static_cast<std::streamsize>((*miptex).nWidth >> 2) * ((*miptex).nHeight >> 2), std::ios::cur);
-        file.seekg(static_cast<std::streamsize>((*miptex).nWidth >> 3) * ((*miptex).nHeight >> 3), std::ios::cur);
+        file.seekg(static_cast<std::streamsize>(miptex.nWidth >> 1) * (miptex.nHeight >> 1), std::ios::cur);
+        file.seekg(static_cast<std::streamsize>(miptex.nWidth >> 2) * (miptex.nHeight >> 2), std::ios::cur);
+        file.seekg(static_cast<std::streamsize>(miptex.nWidth >> 3) * (miptex.nHeight >> 3), std::ios::cur);
 
         file.seekg(sizeof(int16_t), std::ios::cur); // Skip padding
         file.read((char*)(*textures[name]).palette, PALETTESIZE);
@@ -79,8 +79,6 @@ Wad3Reader* ReadWad(const char* filepath)
 
     file.close();
 
-    delete header;
-    delete miptex;
     delete[] dirEntries;
 
     return new Wad3Reader{filepath, textures};
