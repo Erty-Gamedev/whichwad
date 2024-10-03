@@ -4,6 +4,10 @@ A simple CLI utility tool for finding out which WAD of a mod that contains a spe
 
 SteamPipe directories (`_addon`, `_hd` and `_downloads`) are automatically searched within.
 
+## Download
+
+Head on over to [Releases](https://github.com/Erty-Gamedev/whichwad/releases/latest) and grab the latest version. No installation required.
+
 ## Usage
 
 ### Basic usage
@@ -33,7 +37,7 @@ Textures can also be extracted from the found WAD files using the `--extract` ar
 The `--output` argument can be used to specify where to extract the textures to.
 
 ```cli
-python whichwad.py C:/Steam/steamapps/Half-Life/cstrike generic1;generic3 --extract --output C:/projects/cs_banana/extracted
+whichwad.exe C:/Steam/steamapps/Half-Life/cstrike generic1;generic3 --extract --output C:/projects/cs_banana/extracted
 ```
 
 By default extracted textures will be placed in a subfolder of the script named *extracted*.
