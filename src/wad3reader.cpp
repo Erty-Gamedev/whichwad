@@ -84,6 +84,10 @@ Wad3Reader* ReadWad(const char* filepath)
     return new Wad3Reader{filepath, textures};
 }
 
+
+// sizeof(BMPHeader) + sizeof(BMPInfoHeader) + Palette (256 * 4)
+constexpr std::uint32_t SIZEHEADER = 1078;
+
 bool SaveTexture(MMData* texture, const char* filepath)
 {
     std::uint32_t width = (*texture).width, height = (*texture).height;
@@ -92,8 +96,6 @@ bool SaveTexture(MMData* texture, const char* filepath)
 
     // Reverse rows of bitmap data:
     unsigned char* bmpdata = new unsigned char[size];
-    //std::copy((*texture).data, (*texture).data + size, bmpdata);
-
     unsigned char* pmmdata = (*texture).data + (unsigned int)(((*texture).height - 1) * (*texture).width);
     for (unsigned int i = 0; i < (*texture).height; i++)
     {
@@ -128,15 +130,19 @@ bool SaveTexture(MMData* texture, const char* filepath)
     }
 
 
-    std::uint32_t sizeHeader = 1078; // sizeof(BMPHeader) + sizeof(BMPInfoHeader) + Palette (256 * 4)
-    BMPHeader header = { 0x42, 0x4D, sizeHeader + size, 0, sizeHeader };
-
+    BMPHeader header = {0x42, 0x4D, SIZEHEADER + size, 0, SIZEHEADER};
     file.write((char*)&header, sizeof(BMPHeader));
+
 
     BMPInfoHeader infoHeader = {
         uint32_t(40), (*texture).width, (*texture).height,
-        uint16_t(1), uint16_t(8), uint32_t(0), size, 3780, 3780, 256, 256
+        uint16_t(1), uint16_t(8), uint32_t(0), size,
+        3780, // Horizontal pixels per meter
+        3780, // Vertical pixels per meter
+        256,  // Number of colours used (always 256 here)
+        256   // Number of important colours (always 256 here)
     };
+
 
     file.write((char*)&infoHeader, sizeof(infoHeader));
     file.write((char*)&bmppalette, sizeof(bmppalette));

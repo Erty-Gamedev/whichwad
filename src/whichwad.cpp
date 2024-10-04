@@ -156,12 +156,18 @@ int main(int argc, char* argv[])
 
         matching_wads[tex] = matches;
 
+        if (everything)
+        {
+            std::cout << setStyle(std::to_string(matches.size()), COLORS::GREEN, STYLES::BOLD)
+                << setStyle(" textures found", COLORS::CYAN) << std::endl;
+            continue;
+        }
+
         std::cout << setStyle(std::to_string(matches.size()), COLORS::GREEN, STYLES::BOLD)
             << setStyle(" texture names matching ", COLORS::CYAN)
             << setStyle(tex, COLORS::MAGENTA)
-            << setStyle(" found:\n", COLORS::CYAN);
+            << setStyle(" found:", COLORS::CYAN) << std::endl;
 
-        if (everything) { continue; }
         
         for (std::pair<const std::string, std::vector<std::reference_wrapper<Wad3Reader*>>> const& kv : matches)
         {
@@ -184,7 +190,7 @@ int main(int argc, char* argv[])
 
     // Check if output dir exists, or create it
     std::filesystem::path outputPath{outputDir};
-    if (!std::filesystem::is_directory(outputPath))
+    if (!std::filesystem::exists(outputDir) && !std::filesystem::is_directory(outputPath))
     {
         printWarning(std::filesystem::absolute(outputPath).string() + " does not exist. Create it? (Y/n) ");
 
@@ -196,7 +202,7 @@ int main(int argc, char* argv[])
 
         if (std::filesystem::create_directories(outputPath))
         {
-            printInfo(std::filesystem::absolute(outputPath).string() + "created\n");
+            printSuccess(std::filesystem::absolute(outputPath).string() + " created\n");
         }
         else
         {
