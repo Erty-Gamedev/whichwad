@@ -5,8 +5,8 @@
 
 int _CRT_glob = 0;
 
-const char* NAME{ "WhichWAD" };
-const char* VERSION{ "1.0.0" };
+const char* NAME{"Which WAD"};
+const char* VERSION{"1.0.0"};
 
 // CLI arguments and options
 static std::string modpath;
@@ -61,7 +61,6 @@ static bool confirm_dialogue(const bool yesDefault = true)
 
 int main(int argc, char* argv[])
 {
-    //return test();
     CS::init();
     
     for (int count = 1; count < argc; ++count)
