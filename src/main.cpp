@@ -4,11 +4,10 @@
 
 int _CRT_glob = 0;
 
-const char* NAME{"Which WAD"};
-const char* VERSION{"1.1.0"};
-
-
-static void printVersion() { std::cout << NAME << " v" << VERSION << std::endl; }
+#ifndef WHICHWAD_NAME_VERSION
+#define WHICHWAD_NAME_VERSION="Which Wad v0.0.0"
+#endif
+static void printVersion() { std::cout << WHICHWAD_NAME_VERSION << std::endl; }
 
 
 int main(int argc, char** argv)
