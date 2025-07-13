@@ -112,7 +112,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -127,7 +127,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -137,14 +137,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\consolestyling.cpp" />
+    <ClCompile Include="src\bmp8bpp.cpp" />
     <ClCompile Include="src\utils.cpp" />
-    <ClCompile Include="src\wad3reader.cpp" />
+    <ClCompile Include="src\wad3.cpp" />
+    <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\whichwad.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\consolestyling.h" />
-    <ClInclude Include="src\wad3reader.h" />
+    <ClInclude Include="src\bmp8bpp.h" />
+    <ClInclude Include="src\wad3.h" />
+    <ClInclude Include="src\whichwad.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\utils.h" />

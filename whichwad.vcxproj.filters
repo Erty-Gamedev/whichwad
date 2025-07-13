@@ -15,13 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\consolestyling.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\wad3reader.cpp">
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\wad3.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bmp8bpp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\whichwad.cpp">
@@ -29,10 +32,13 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\consolestyling.h">
+    <ClInclude Include="src\wad3.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\wad3reader.h">
+    <ClInclude Include="src\bmp8bpp.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\whichwad.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

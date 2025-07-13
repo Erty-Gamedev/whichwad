@@ -1,13 +1,51 @@
-#pragma pack(1)
 #include <string>
 #include <algorithm>
+#include <iostream>
 #include <cctype>
 #include "utils.h"
 
 
-const char* STEAM_PIPES[] = {"_addon", "_hd", "_downloads"};
-const char* WAD_SKIP_LIST[] = {"cached", "fonts", "gfx", "spraypaint", "tempdecal"};
+const char* c_STEAM_PIPES[] = { "_addon", "_hd", "_downloads" };
+const char* c_WAD_SKIP_LIST[] = { "cached", "fonts", "gfx", "spraypaint", "tempdecal" };
 
+
+void printUsage()
+{
+    std::cout
+        << "Usage: whichwad.exe MOD_PATH TEXTURE [OPTIONS]\n\n"
+        << Styling::bold << "REQUIRED ARGUMENTS" << Styling::reset << "\n"
+        << " * MOD PATH\t\t(path)\t"
+        << "path to the mod with the WAD files e.g. \".../steamapps/Half-Life/valve\"\n"
+        << " * TEXTURE\t\t(text)\t"
+        << "texture(s) to search for, use \";\" to delimit multiple textures\n\n"
+        << Styling::bold << "OPTIONS" << Styling::reset << "\n"
+        << "  --version\t-v\t\t"
+        << "print application version\n"
+        << "  --extract\t-e\t\t"
+        << "extract the textures (8BPP BMP)\n"
+        << "  --output\t-o\t(path)\t"
+        << "output directory for extracted textures (default: extracted)\n"
+        << "  --help\t-h\t\t"
+        << "print this message and exit"
+        << std::endl;
+}
+
+void exitError(std::string message, bool printHelp, int exitCode)
+{
+    Styling::printError("Error: " + message + "\n");
+    if (printHelp) { printUsage(); }
+    exit(EXIT_FAILURE);
+}
+
+bool confirm_dialogue(const bool yesDefault)
+{
+    static std::string buffer;
+    std::getline(std::cin, buffer);
+
+    if (buffer.empty()) { return yesDefault; }
+    if (tolower(buffer.at(0)) == 'y') { return true; }
+    return false;
+}
 
 std::string toLowerCase(std::string str)
 {
@@ -27,7 +65,7 @@ std::string toUpperCase(std::string str)
 
 std::string unsteampipe(std::string str)
 {
-    for (const char* pipe: STEAM_PIPES)
+    for (const char* pipe: c_STEAM_PIPES)
     {
         size_t matchPosition = str.find(pipe);
         if (matchPosition != std::string::npos)
@@ -54,7 +92,7 @@ void findWadFiles(std::filesystem::path modpath, std::vector<std::filesystem::pa
             filestem = toLowerCase(filepath.stem().string());
             shouldSkip = false;
 
-            for (const char* skip : WAD_SKIP_LIST)
+            for (const char* skip : c_WAD_SKIP_LIST)
             {
                 if (strcmp(skip, (char*)filestem.c_str()) == 0)
                 {
@@ -74,7 +112,7 @@ std::vector<std::filesystem::path> findWadFilesPipes(std::filesystem::path modpa
     std::filesystem::path steampiped;
 
     // Gather WAD files from _addon, _hd and _downloads (if they exist)
-    for (const char* pipe: STEAM_PIPES)
+    for (const char* pipe: c_STEAM_PIPES)
     {
         steampiped = std::filesystem::path(modpath.string() + pipe);
         if (std::filesystem::is_directory(steampiped))
@@ -115,42 +153,22 @@ bool wildcardCompare(std::string search, std::string haystack)
     }
 }
 
-std::vector<std::string> filterTextureMap(Wad3Reader* reader, std::string tex)
+void Styling::printError(const std::string& message)
 {
-    std::vector<std::string> matches;
-    for (std::pair<const std::string, MMData*> const& kv : (*reader).textures)
-    {
-        if (wildcardCompare(tex, kv.first))
-        {
-            matches.push_back(kv.first);
-        }
-    }
-    return matches;
+    std::cerr << error << message << reset << std::endl;
 }
 
-matchTextureMap findTextureInWad(
-    std::vector<path> globs, std::string tex, readerPathMap &readers)
+void Styling::printWarning(const std::string& message)
 {
-    matchTextureMap matchMap;
+    std::cout << warning << message << reset << std::endl;
+}
 
-    for (path const& glob : globs)
-    {
-        if (readers.count(glob) == 0)
-        {
-            readers[glob] = ReadWad(glob.string().c_str());
-        }
+void Styling::printInfo(const std::string& message)
+{
+    std::cout << info << message << reset << std::endl;
+}
 
-        std::vector<std::string> matches = filterTextureMap(readers[glob], tex);
-
-        for (std::string const& match : matches)
-        {
-            if (matchMap.count(match) == 0)
-            {
-                matchMap[match] = std::vector<std::reference_wrapper<Wad3Reader*>>{};
-            }
-            matchMap[match].push_back(readers[glob]);
-        }
-    }
-
-    return matchMap;
+void Styling::printSuccess(const std::string& message)
+{
+    std::cout << success << message << reset << std::endl;
 }
