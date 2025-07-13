@@ -11,8 +11,12 @@ const char* c_WAD_SKIP_LIST[] = { "cached", "fonts", "gfx", "spraypaint", "tempd
 
 void printUsage()
 {
+#ifdef WIN32
+    std::cout << "Usage: whichwad.exe MOD_PATH TEXTURE [OPTIONS]\n\n";
+#else
+    std::cout << "Usage: whichwad MOD_PATH TEXTURE [OPTIONS]\n\n";
+#endif
     std::cout
-        << "Usage: whichwad.exe MOD_PATH TEXTURE [OPTIONS]\n\n"
         << Styling::bold << "REQUIRED ARGUMENTS" << Styling::reset << "\n"
         << " * MOD PATH\t\t(path)\t"
         << "path to the mod with the WAD files e.g. \".../steamapps/Half-Life/valve\"\n"

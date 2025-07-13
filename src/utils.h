@@ -3,6 +3,7 @@
 #include <sstream>
 #include <cstring>
 #include <filesystem>
+#include <vector>
 
 #ifdef _WIN32
 #include <wchar.h>
