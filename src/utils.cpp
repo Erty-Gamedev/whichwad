@@ -11,7 +11,7 @@ const char* c_WAD_SKIP_LIST[] = { "cached", "fonts", "gfx", "spraypaint", "tempd
 
 void printUsage()
 {
-#ifdef WIN32
+#ifdef _WIN32
     std::cout << "Usage: whichwad.exe MOD_PATH TEXTURE [OPTIONS]\n\n";
 #else
     std::cout << "Usage: whichwad MOD_PATH TEXTURE [OPTIONS]\n\n";
