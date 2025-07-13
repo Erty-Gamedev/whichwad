@@ -34,7 +34,9 @@
 # IDE
 .vscode/
 .vs/
-*.vcxproj.user
+*.user
+*.vcxproj
+*.vcxproj.filters
 
 # Test files
 test.*
