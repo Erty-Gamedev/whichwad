@@ -38,6 +38,9 @@
 *.vcxproj
 *.vcxproj.filters
 *.sln
+resource.h
+*.aps
+*.rc
 
 # Test files
 test.*
