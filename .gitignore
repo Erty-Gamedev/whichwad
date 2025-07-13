@@ -37,6 +37,7 @@
 *.user
 *.vcxproj
 *.vcxproj.filters
+*.sln
 
 # Test files
 test.*
