@@ -1,9 +1,13 @@
 #include <iostream>
 #include "utils.h"
 #include "whichwad.h"
+#include "logging.h"
 
 using namespace WAD3;
-namespace S = Styling;
+using namespace Styling;
+
+static Logging::Logger& logger = Logging::Logger::getLogger("whichwad");
+
 
 
 static inline std::vector<std::string> filterTextureMap(const Wad3Reader& reader, std::string filter)
@@ -63,10 +67,10 @@ int whichwad(Options options)
 
         if (matches.size() == 0)
         {
-            std::cout << S::error << "No texture names matching " << S::reset
-                << S::fgCyan << S::bold << tex << S::reset
-                << S::error << " not found in any WAD in " << S::reset
-                << S::fgRed << options.modpath << S::reset << std::endl;
+            std::cout << style(error) << "No texture names matching " << style()
+                << style(cyan|bold) << tex << style()
+                << style(error) << " not found in any WAD in " << style()
+                << style(red) << options.modpath << style() << std::endl;
             continue;
         }
 
@@ -74,30 +78,28 @@ int whichwad(Options options)
 
         if (options.everything)
         {
-            std::cout << S::success << matches.size() << S::reset
-                << S::info << " textures found" << std::endl;
+            std::cout << style(success) << matches.size() << style()
+                << style(info) << " textures found" << std::endl;
             continue;
         }
 
-        std::cout << S::success << matches.size() << S::reset
-            << S::info << " texture names matching " << S::reset
-            << S::fgMagenta << tex << S::reset
-            << S::info << " found:" << S::reset << std::endl;
+        std::cout << style(success) << matches.size() << style()
+            << style(info) << " texture names matching " << style()
+            << style(magenta) << tex << style()
+            << style(info) << " found:" << style() << std::endl;
 
         for (const auto& kv : matches)
         {
-            std::cout << S::warning << "\t" << toUpperCase(kv.first) << S::reset
+            std::cout << style(warning) << "\t" << toUpperCase(kv.first) << style()
                 << " found in " << kv.second.size() << " WADS:" << std::endl;
 
             for (const auto& reader : kv.second)
-                std::cout << S::fgBrightBlack << "\t" << reader->m_filepath.string() << std::endl;
+                std::cout << style(brightBlack) << "\t" << reader->m_filepath.string() << std::endl;
         }
     }
 
     if (!options.extract || matchingWads.size() == 0)
-    {
         return EXIT_SUCCESS;
-    }
 
     std::cout << "\n";
 
@@ -105,22 +107,24 @@ int whichwad(Options options)
     std::filesystem::path outputPath{ options.outputDir };
     if (!std::filesystem::exists(options.outputDir) && !std::filesystem::is_directory(outputPath))
     {
-        S::printWarning(std::filesystem::absolute(outputPath).string() + " does not exist. Create it? (Y/n) ");
+        std::cout << style(warning)
+            << std::filesystem::absolute(outputPath).string() + " does not exist. Create it? (Y/n) "
+            << style();
 
         if (!confirm_dialogue(true))
         {
             std::cout << "Output dir not created, aborted\n";
-            return EXIT_FAILURE;
+            return EXIT_SUCCESS;
         }
 
         if (std::filesystem::create_directories(outputPath))
         {
-            S::printSuccess(std::filesystem::absolute(outputPath).string() + " created\n");
+            printSuccess(std::filesystem::absolute(outputPath).string() + " created\n");
         }
         else
         {
-            exitError("Could not create path '"
-                + std::filesystem::absolute(outputPath).string() + "'");
+            logger.error("Could not create directory '%s'", std::filesystem::absolute(outputPath).string());
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -136,17 +140,17 @@ int whichwad(Options options)
             {
                 std::shared_ptr<Wad3Reader> reader = matchReaders.second[0];
 
-                std::cout << S::info << "Saving texture from "
-                    << std::filesystem::path{ reader->m_filepath }.filename().string() << " to " << S::reset
-                    << S::info << S::bold << outputFile << S::reset << std::endl;
+                std::cout << style(info) << "Saving texture from "
+                    << std::filesystem::path{ reader->m_filepath }.filename().string() << " to " << style()
+                    << style(info|bold) << outputFile << style() << std::endl;
 
                 reader->extract(matchReaders.first, outputPath);
                 continue;
             }
 
-            std::cout << toUpperCase(matchReaders.first) << S::fgGreen
+            std::cout << toUpperCase(matchReaders.first) << style(green)
                 << " found in " << matchReaders.second.size()
-                << " WADs. It's time to choose:" << S::reset << std::endl;
+                << " WADs. It's time to choose:" << style() << std::endl;
 
             chosenMultiWad = false;
             for (const std::shared_ptr<Wad3Reader> reader : matchReaders.second)
@@ -157,8 +161,8 @@ int whichwad(Options options)
                 if (confirm_dialogue(true))
                 {
                     chosenMultiWad = true;
-                    std::cout << S::info << "Saving texture from " << readerFilename << " to " << S::reset
-                        << S::info << S::bold << outputFile << S::reset << std::endl;
+                    std::cout << style(info) << "Saving texture from " << readerFilename << " to " << style()
+                        << style(info|bold) << outputFile << style() << std::endl;
 
                     reader->extract(matchReaders.first, outputPath);
                     break;
@@ -166,7 +170,7 @@ int whichwad(Options options)
             }
 
             if (!chosenMultiWad)
-                std::cout << S::warning << toUpperCase(matchReaders.first) << " was not extracted" << S::reset << std::endl;
+                std::cout << style(warning) << toUpperCase(matchReaders.first) << " was not extracted" << style() << std::endl;
         }
     }
 

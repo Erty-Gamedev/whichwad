@@ -3,10 +3,14 @@
 #include <iostream>
 #include <cctype>
 #include "utils.h"
+#include "logging.h"
 
 
 const char* c_STEAM_PIPES[] = { "_addon", "_hd", "_downloads" };
 const char* c_WAD_SKIP_LIST[] = { "cached", "fonts", "gfx", "spraypaint", "tempdecal" };
+
+
+using namespace Styling;
 
 
 void printUsage()
@@ -17,12 +21,12 @@ void printUsage()
     std::cout << "Usage: whichwad MOD_PATH TEXTURE [OPTIONS]\n\n";
 #endif
     std::cout
-        << Styling::bold << "REQUIRED ARGUMENTS" << Styling::reset << "\n"
+        << style(bold) << "REQUIRED ARGUMENTS" << style() << "\n"
         << " * MOD PATH\t\t(path)\t"
         << "path to the mod with the WAD files e.g. \".../steamapps/Half-Life/valve\"\n"
         << " * TEXTURE\t\t(text)\t"
         << "texture(s) to search for, use \";\" to delimit multiple textures\n\n"
-        << Styling::bold << "OPTIONS" << Styling::reset << "\n"
+        << style(bold) << "OPTIONS" << style() << "\n"
         << "  --version\t-v\t\t"
         << "print application version\n"
         << "  --extract\t-e\t\t"
@@ -32,13 +36,6 @@ void printUsage()
         << "  --help\t-h\t\t"
         << "print this message and exit"
         << std::endl;
-}
-
-void exitError(std::string message, bool printHelp, int exitCode)
-{
-    Styling::printError("Error: " + message + "\n");
-    if (printHelp) { printUsage(); }
-    exit(EXIT_FAILURE);
 }
 
 bool confirm_dialogue(const bool yesDefault)
@@ -157,22 +154,7 @@ bool wildcardCompare(std::string search, std::string haystack)
     }
 }
 
-void Styling::printError(const std::string& message)
+void printSuccess(const std::string& message)
 {
-    std::cerr << error << message << reset << std::endl;
-}
-
-void Styling::printWarning(const std::string& message)
-{
-    std::cout << warning << message << reset << std::endl;
-}
-
-void Styling::printInfo(const std::string& message)
-{
-    std::cout << info << message << reset << std::endl;
-}
-
-void Styling::printSuccess(const std::string& message)
-{
-    std::cout << success << message << reset << std::endl;
+    std::cout << style(success) << message << style() << std::endl;
 }

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.30)
 
 set(WHICHWAD_PROJECT_NAME         "whichwad")
 set(WHICHWAD_PROJECT_DESCRIPTION  "Find which WAD files contains the specificed textures")
@@ -16,6 +16,8 @@ project(${WHICHWAD_PROJECT_NAME})
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+include_directories(PUBLIC "${PROJECT_SOURCE_DIR}/vendor/logging/src")
 
 add_executable(${WHICHWAD_PROJECT_NAME}
     src/main.cpp
