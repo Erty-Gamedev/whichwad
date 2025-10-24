@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.28)
 
 set(WHICHWAD_PROJECT_NAME         "whichwad")
 set(WHICHWAD_PROJECT_DESCRIPTION  "Find which WAD files contains the specificed textures")
