@@ -31,25 +31,8 @@ int main(int argc, char** argv)
         }
     }
 
-
-    // Check mod path
-    if (argc < 2)
-    {
-        logger.error("Mod path must be provided");
-        printUsage();
-        return EXIT_FAILURE;
-    }
-
-    // Check texture
-    if (argc < 3)
-    {
-        logger.error("Texture name must be provided");
-        printUsage();
-        return EXIT_FAILURE;
-    }
-
-
     Options options{};
+
     for (int i = 1; i < argc; ++i)
     {
         if (strcmp(argv[i], "--extract") == 0 || strcmp(argv[i], "-e") == 0)
@@ -69,39 +52,72 @@ int main(int argc, char** argv)
             logger.error("Missing directory parameter for %s argument (use \".\" for current directory)", argv[i - 1]);
             return EXIT_FAILURE;
         }
+        if (strcmp(argv[i], "--steamdir") == 0 || strcmp(argv[i], "-s") == 0)
+        {
+            ++i;
+            if (i < argc)
+            {
+                if (std::filesystem::is_directory(argv[i]))
+                {
+                    options.steamDir = argv[i];
+                    continue;
+                }
+                logger.error("%s was not a directory", argv[i]);
+                return EXIT_FAILURE;
+            }
 
-        if (i > 2 || strncmp(argv[i], "-", 1) == 0)
+            logger.error("Missing directory parameter for %s argument", argv[i - 1]);
+            return EXIT_FAILURE;
+        }
+        if (strcmp(argv[i], "--mod") == 0 || strcmp(argv[i], "-m") == 0)
+        {
+            ++i;
+            if (i < argc)
+            {
+                options.mod = argv[i];
+                continue;
+            }
+
+            logger.error("Missing mod parameter for %s argument", argv[i - 1]);
+            return EXIT_FAILURE;
+        }
+
+        if (strncmp(argv[i], "-", 1) == 0)
         {
             logger.error("Unknown argument '%s'", argv[i]);
             printUsage();
             return EXIT_FAILURE;
         }
+
+        options.textures.emplace_back(argv[i]);
     }
 
-    if (!std::filesystem::is_directory(argv[1]))
+    if (options.textures.empty())
     {
-        logger.error("'%s' is not a directory", argv[1]);
+        logger.error("Texture name(s) must be provided");
+        printUsage();
         return EXIT_FAILURE;
     }
-    options.modpath = unsteampipe(argv[1]);
 
-    options.texture = argv[2];
-
-
-    if (options.texture == "*")
+    for (const std::string& texture : options.textures)
     {
-        std::cout << Styling::style(Styling::bold) << "'*' will match everything. Are you sure? (y/N) " << Styling::style();
-        
-        if (confirm_dialogue(false))
+        if (texture == "*")
         {
+            std::cout << Styling::style(Styling::bold) << "'*' will match everything. Are you sure? (y/N) " << Styling::style();
+
+            if (!confirm_dialogue(false))
+            {
+                std::cout << "Exiting..." << std::endl;
+                return EXIT_SUCCESS;
+            }
+
             options.everything = true;
-        }
-        else
-        {
-            std::cout << "Exiting..." << std::endl;
-            return EXIT_SUCCESS;
+            break;
         }
     }
+
+    if (options.steamDir.empty())
+        options.steamDir = getSteamDir();
 
     return whichwad(options);
 }

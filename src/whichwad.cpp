@@ -1,4 +1,5 @@
 #include <iostream>
+#include <set>
 #include "utils.h"
 #include "whichwad.h"
 #include "logging.h"
@@ -15,7 +16,7 @@ static inline std::vector<std::string> filterTextureMap(const Wad3Reader& reader
     filter = toLowerCase(filter);
 
 	std::vector<std::string> matches;
-    for (auto& dirEntry : reader.m_dirEntries)
+    for (const auto& dirEntry : reader.m_dirEntries)
     {
         std::string entryName = toLowerCase(dirEntry.szName);
 		if (wildcardCompare(filter, entryName))
@@ -25,52 +26,114 @@ static inline std::vector<std::string> filterTextureMap(const Wad3Reader& reader
 }
 
 wadPathMap findTextureInWads(
-	const std::vector<std::filesystem::path>& globs,
+	const std::set<std::filesystem::path>& globs,
 	const std::string& filter,
 	wadReaderMap& readers
 )
 {
 	wadPathMap matchMap;
 
-	for (auto& glob : globs)
+	for (const auto& glob : globs)
 	{
-		if (!readers.contains(glob))
-			readers.insert(std::pair{ glob, std::make_shared<Wad3Reader>(glob) });
+        if (!readers.contains(glob))
+        {
+            try
+            {
+                readers.insert_or_assign(glob, std::make_unique<Wad3Reader>(glob));
+            }
+            catch (const std::runtime_error& e)
+            {
+                logger.debug(e.what());
+                continue;
+            }
+        }
 
-		std::shared_ptr<Wad3Reader> reader = readers.at(glob);
+        Wad3Reader& reader = *readers.at(glob);
 
-		std::vector<std::string> matches = filterTextureMap(*reader, filter);
+		std::vector<std::string> matches = filterTextureMap(reader, filter);
 
-		for (auto& match : matches)
+		for (const auto& match : matches)
 		{
-			if (!matchMap.contains(match))
-				matchMap.insert(std::pair{ match, std::vector<std::shared_ptr<Wad3Reader>>{} });
+            if (!matchMap.contains(match))
+                matchMap[match] = {};
 
-			matchMap.at(match).push_back(reader);
+            matchMap.at(match).push_back(readers.at(glob).get());
 		}
 	}
 
 	return matchMap;
 }
 
-int whichwad(Options options)
+
+static inline void findMods(std::set<std::filesystem::path>& modDirs, const std::filesystem::path& gameDir, const std::string& mod)
 {
-    std::vector<std::filesystem::path> globs = findWadFilesPipes(options.modpath);
-    std::vector<std::string> textures = splitString(std::stringstream(options.texture), ';');
+    if (!std::filesystem::is_directory(gameDir)) return;
+
+    if (!mod.empty())
+    {
+        for (const auto &dirEntry : std::filesystem::directory_iterator(gameDir))
+        {
+            std::filesystem::path entryPath = dirEntry.path();
+            if (entryPath.stem().string() == mod)
+            {
+                modDirs.insert(entryPath.parent_path() / unsteampipe(entryPath.stem().string()));
+                return;
+            }
+        }
+        return;
+    }
+
+    for (const auto& dirEntry : std::filesystem::directory_iterator(gameDir))
+    {
+        std::filesystem::path entryPath = dirEntry.path();
+        if (!std::filesystem::is_directory(entryPath) || !std::filesystem::exists(entryPath / "liblist.gam"))
+            continue;
+
+        modDirs.insert(entryPath.parent_path() / unsteampipe(entryPath.stem().string()));
+    }
+}
+
+static inline std::set<std::filesystem::path> findModDirs(const std::filesystem::path& steamDir, const std::string& mod = "")
+{
+    std::set<std::filesystem::path> modDirs;
+    std::filesystem::path common{ steamDir / "steamapps" / "common" };
+
+    if (!std::filesystem::is_directory(common))
+    {
+        modDirs.insert(steamDir);
+        return modDirs;
+    }
+
+    findMods(modDirs, common / "Half-Life", mod);
+    findMods(modDirs, common / "Sven Co-op", mod);
+
+    return modDirs;
+}
+
+
+int whichwad(const Options& options)
+{
+    std::set<std::filesystem::path> globs;
+
+    for (const std::filesystem::path& modDir : findModDirs(options.steamDir, options.mod))
+        findWadFilesPipes(modDir, globs);
+
+    logger.debug("Found %i WAD files", globs.size());
+
+
     std::unordered_map<std::string, wadPathMap> matchingWads;
     wadPathMap matches;
     wadReaderMap readers;
 
-    for (std::string const& tex : textures)
+    for (std::string const& tex : options.textures)
     {
         matches = findTextureInWads(globs, tex, readers);
 
         if (matches.size() == 0)
         {
             std::cout << style(error) << "No texture names matching " << style()
-                << style(cyan|bold) << tex << style()
-                << style(error) << " not found in any WAD in " << style()
-                << style(red) << options.modpath << style() << std::endl;
+                << style(info|bold) << tex << style()
+                << style(error) << " not found in any WAD in the search path" << style() << std::endl;
             continue;
         }
 
@@ -78,23 +141,23 @@ int whichwad(Options options)
 
         if (options.everything)
         {
-            std::cout << style(success) << matches.size() << style()
+            std::cout << style(info|bold) << matches.size() << style()
                 << style(info) << " textures found" << std::endl;
             continue;
         }
 
-        std::cout << style(success) << matches.size() << style()
-            << style(info) << " texture names matching " << style()
-            << style(magenta) << tex << style()
+        std::cout << style(info|bold) << matches.size()
+            << style(info) << " texture names matching "
+            << style(info|bold) << tex
             << style(info) << " found:" << style() << std::endl;
 
         for (const auto& kv : matches)
         {
-            std::cout << style(warning) << "\t" << toUpperCase(kv.first) << style()
+            std::cout << style(warning) << "  " << toUpperCase(kv.first) << style()
                 << " found in " << kv.second.size() << " WADS:" << std::endl;
 
             for (const auto& reader : kv.second)
-                std::cout << style(brightBlack) << "\t" << reader->m_filepath.string() << std::endl;
+                std::cout << style(brightBlack) << "    " << reader->m_filepath.string() << std::endl;
         }
     }
 
@@ -138,13 +201,13 @@ int whichwad(Options options)
 
             if (matchReaders.second.size() == 1)
             {
-                std::shared_ptr<Wad3Reader> reader = matchReaders.second[0];
+                Wad3Reader& reader = *matchReaders.second[0];
 
                 std::cout << style(info) << "Saving texture from "
-                    << std::filesystem::path{ reader->m_filepath }.filename().string() << " to " << style()
+                    << reader.m_filepath.filename().string() << " to " << style()
                     << style(info|bold) << outputFile << style() << std::endl;
 
-                reader->extract(matchReaders.first, outputPath);
+                reader.extract(matchReaders.first, outputPath);
                 continue;
             }
 
@@ -153,9 +216,9 @@ int whichwad(Options options)
                 << " WADs. It's time to choose:" << style() << std::endl;
 
             chosenMultiWad = false;
-            for (const std::shared_ptr<Wad3Reader> reader : matchReaders.second)
+            for (const auto& reader : matchReaders.second)
             {
-                std::string readerFilename = std::filesystem::path{ reader->m_filepath }.filename().string();
+                std::string readerFilename = reader->m_filepath.filename().string();
                 std::cout << "Extract from " + readerFilename + "? (Y/n) ";
 
                 if (confirm_dialogue(true))

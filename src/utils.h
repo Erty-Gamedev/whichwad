@@ -4,6 +4,8 @@
 #include <cstring>
 #include <filesystem>
 #include <vector>
+#include <set>
+#include <unordered_map>
 
 #ifdef _WIN32
 #include <wchar.h>
@@ -13,13 +15,16 @@
 
 void printUsage();
 bool confirm_dialogue(const bool yesDefault = true);
+std::filesystem::path getSteamDir();
 
 std::string toLowerCase(std::string str);
 std::string toUpperCase(std::string str);
 std::string unsteampipe(std::string str);
-void findWadFiles(std::filesystem::path modpath, std::vector<std::filesystem::path> &globs);
-std::vector<std::filesystem::path> findWadFilesPipes(std::filesystem::path modpath);
-std::vector<std::string> splitString(std::stringstream str, char delimiter);
+void findWadFiles(std::filesystem::path modpath, std::set<std::filesystem::path>& globs);
+void findWadFilesPipes(std::filesystem::path modpath, std::set<std::filesystem::path>& globs);
+std::vector<std::string> splitString(const std::string& str, const char delimiter = ' ');
+void trim(std::string& str, const char* trim = " \t\n\r");
+
 bool wildcardCompare(std::string search, std::string haystack);
 
 void printSuccess(const std::string& message);
