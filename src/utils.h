@@ -1,6 +1,5 @@
 #pragma once
 
-#include <sstream>
 #include <cstring>
 #include <filesystem>
 #include <vector>
@@ -25,6 +24,6 @@ void findWadFilesPipes(std::filesystem::path modpath, std::set<std::filesystem::
 std::vector<std::string> splitString(const std::string& str, const char delimiter = ' ');
 void trim(std::string& str, const char* trim = " \t\n\r");
 
-bool wildcardCompare(std::string search, std::string haystack);
+bool wildcardCompare(const std::string& search, const std::string& haystack);
 
 void printSuccess(const std::string& message);

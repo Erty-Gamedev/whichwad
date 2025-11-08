@@ -268,19 +268,26 @@ void trim(std::string& str, const char* trim)
     str.erase(str.find_last_not_of(trim) + 1);
 }
 
-bool wildcardCompare(std::string search, std::string haystack)
+bool wildcardCompare(const std::string& search, const std::string& haystack)
 {
-    if (search[0] == '*') {return true;}
+    if (search == "*") return true;
 
     size_t wildcardPosition = search.find('*');
+
+    if (search.length() > (haystack.length() + 1))
+        return false;
+
+    if (wildcardPosition == 0)
+    {
+        bool test = haystack == "clip";
+        size_t searchLength = search.length() - 1;
+        return haystack.compare(haystack.length() - searchLength, searchLength, search.substr(1, searchLength)) == 0;
+    }
+
     if (wildcardPosition != std::string::npos)
-    {
         return haystack.compare(0, wildcardPosition, search.substr(0, wildcardPosition)) == 0;
-    }
-    else
-    {
-        return search == haystack;
-    }
+
+    return search == haystack;
 }
 
 void printSuccess(const std::string& message)

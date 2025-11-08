@@ -40,11 +40,10 @@ texture names with a space, e.g.: `my_texture1 +2other_texture !water_texture`
 
 ### Wildcard search
 
-Entering an asterisk (`*`) in the search term will match any texture name
-prefixed by that search term.
+Entering an asterisk (`*`) in the search term will match a texture name by prefix or suffix depending on whether the asterisk is at the end or beginning of the term.
 
 This way you can match any texture name beginning with *generic*
-by searching for "generic*".
+by searching for "generic\*", or any texture name ending with *wall* by searching for "\*wall".
 
 ### Extract textures
 
