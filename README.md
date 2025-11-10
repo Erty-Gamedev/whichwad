@@ -1,4 +1,4 @@
-# Which WAD
+# WhichWAD
 
 A simple CLI utility tool for finding out which WAD of a mod that contains a specific texture.
 
@@ -17,6 +17,12 @@ To find which WAD in any mod that contains *some_texture*:
 ```cli
 whichwad.exe some_texture
 ```
+
+> [!NOTE]
+> On Linux you may need to escape certain wildcards (such as `!`)
+> or wrap the search term in double-quotation marks to avoid file globbing.
+> For example, to match all *!liquid* textures you should use
+> `whichwad "!*"` or `whichwad \!*`
 
 The first time you run the tool it will ask you for the path to your Steam installation.
 This will be its default search directory and it will automatically find mod folders within it.
