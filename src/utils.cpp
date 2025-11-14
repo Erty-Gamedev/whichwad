@@ -129,7 +129,7 @@ bool confirm_dialogue(const bool yesDefault)
     return false;
 }
 
-static inline const char* defaultSteamDir = "C:/Program Files (x86)/Steam";
+static inline const char* c_defaultSteamDir = "C:/Program Files (x86)/Steam";
 std::filesystem::path getSteamDir()
 {
     readConfigFile();
@@ -141,19 +141,19 @@ std::filesystem::path getSteamDir()
         logger.warning("\"%s\" is not a directory", g_configs["steamdir"]);
     }
 
-    if (std::filesystem::is_directory(defaultSteamDir))
+    if (std::filesystem::is_directory(c_defaultSteamDir))
     {
-        std::cout << "Is C:/Program Files (x86)/Steam your Steam directory? (Y/n) ";
+        std::cout << "Is " << c_defaultSteamDir << " your Steam directory ? (Y / n) ";
         if (confirm_dialogue(true))
         {
-            g_configs.insert_or_assign("steamdir", defaultSteamDir);
+            g_configs.insert_or_assign("steamdir", c_defaultSteamDir);
             saveConfigFile();
-            return defaultSteamDir;
+            return c_defaultSteamDir;
         }
     }
 
 
-    static std::string buffer;
+    std::string buffer;
     for (int i = 0; i < 3; ++i)
     {
         std::cout << "Enter path to Steam directory:  ";

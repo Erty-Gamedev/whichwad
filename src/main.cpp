@@ -6,7 +6,7 @@
 int _CRT_glob = 0;
 
 #ifndef WHICHWAD_NAME_VERSION
-#define WHICHWAD_NAME_VERSION="Which Wad v0.0.0"
+#define WHICHWAD_NAME_VERSION "Which Wad v0.0.0"
 #endif
 
 static Logging::Logger& logger = Logging::Logger::getLogger("whichwad");
