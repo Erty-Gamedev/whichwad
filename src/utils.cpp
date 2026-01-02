@@ -272,14 +272,13 @@ bool wildcardCompare(const std::string& search, const std::string& haystack)
 {
     if (search == "*") return true;
 
-    size_t wildcardPosition = search.find('*');
-
     if (search.length() > (haystack.length() + 1))
         return false;
 
+    size_t wildcardPosition = search.find('*');
+
     if (wildcardPosition == 0)
     {
-        bool test = haystack == "clip";
         size_t searchLength = search.length() - 1;
         return haystack.compare(haystack.length() - searchLength, searchLength, search.substr(1, searchLength)) == 0;
     }
