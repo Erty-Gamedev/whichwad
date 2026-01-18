@@ -12,6 +12,7 @@ namespace fs = std::filesystem;
 static Logging::Logger& logger = Logging::Logger::getLogger("whichwad");
 
 Options g_options{};
+std::atomic<int> g_receivedSignal = -1;
 
 
 TextureTest::TextureTest(const std::string& _filter) : filter(toLowerCase(_filter))
@@ -152,8 +153,12 @@ void Options::findGlobs()
 
 void Options::checkGlobs()
 {
+    std::cout << "\033[1E";
+
     for (const auto& glob : globs)
     {
+        std::cout << "\r\033[1F\033[0KReading " << glob.string() << "\nFound " << g_options.foundMatches;
+
         std::unique_ptr<BaseReader> reader;
 
         try
@@ -167,9 +172,18 @@ void Options::checkGlobs()
         {
             if (logger.getLevel() > Logging::LogLevel::LOG_DEBUG)
                 continue;
+            std::cerr << "\r\033[1F\033[0K";  // Insert before WARNING prefix by logger
             logger.warning("Could not read " + glob.string() + ". Reason: " + e.what());
+            std::cerr << "\033[1E";
         }
+
+
+        if ((g_receivedSignal != -1))
+            break;
     }
+
+
+    std::cout << "\r\033[1F\033[0K" << std::endl;
 }
 
 

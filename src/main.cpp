@@ -124,6 +124,10 @@ static void handleArgs(const int argc, char* argv[])
         g_options.steamCommonDir = g_options.steamDir / "steamapps/common";
 }
 
+extern "C" void signalHandler(int sig)
+{
+    g_receivedSignal.store(sig);
+}
 
 
 int main(int argc, char** argv)
@@ -131,6 +135,12 @@ int main(int argc, char** argv)
     logger.setFileHandler(nullptr);
 
     handleArgs(argc, argv);
+
+    /*
+      Use a custom handler to break checkMaps loop without stopping application completely,
+      that way we can report on the matches found so far if interrupted early.
+    */
+    std::signal(SIGINT, signalHandler);
 
     g_options.findGlobs();
 
@@ -140,6 +150,8 @@ int main(int argc, char** argv)
 
     g_options.checkGlobs();
 
+    // Return signal handler to default
+    std::signal(SIGINT, SIG_DFL);
 
     std::unordered_map<std::string, std::set<std::filesystem::path>> foundTextures;
 

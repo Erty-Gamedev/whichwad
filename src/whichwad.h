@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <atomic>
+#include <csignal>
 #include <string_view>
 #include <unordered_map>
 #include <filesystem>
@@ -52,6 +54,7 @@ private:
     void findAllMods();
 };
 extern Options g_options;
+extern std::atomic<int> g_receivedSignal;
 
 
 
