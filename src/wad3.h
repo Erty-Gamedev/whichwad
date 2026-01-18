@@ -1,12 +1,9 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <fstream>
-#include <filesystem>
+#include <cstdint>
 
 
-namespace WAD3
+namespace WAD3Format
 {
     constexpr size_t c_MAXTEXTURENAME = 16;
     constexpr size_t c_MIPLEVELS = 4;
@@ -46,25 +43,4 @@ namespace WAD3
         std::uint32_t nOffsets[c_MIPLEVELS]; // Offsets to texture mipmaps
     };
 #pragma pack(pop)
-
-
-    class Wad3Reader
-    {
-    public:
-        std::filesystem::path m_filepath;
-        std::vector<Wad3DirEntry> m_dirEntries;
-
-        Wad3Reader() {};
-        Wad3Reader(const std::filesystem::path& filepath);
-        ~Wad3Reader();
-
-        std::string getFilename() const;
-        bool contains(const std::string& textureName);
-        Wad3MipTex extract(const std::string& textureName, const std::filesystem::path& filepath);
-    private:
-        std::ifstream m_file;
-
-        void open();
-        Wad3DirEntry* getDirEntry(const std::string& textureName);
-    };
 }

@@ -41,6 +41,7 @@
 resource.h
 *.aps
 *.rc
+.idea/
 
 # Test files
 test.*

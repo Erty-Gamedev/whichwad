@@ -1,241 +1,490 @@
-#include <iostream>
 #include <set>
+#include <ranges>
+#include <iostream>
 #include "utils.h"
 #include "whichwad.h"
 #include "logging.h"
+#include "bmp8bpp.h"
 
-using namespace WAD3;
 using namespace Styling;
+namespace fs = std::filesystem;
 
 static Logging::Logger& logger = Logging::Logger::getLogger("whichwad");
 
+Options g_options{};
 
 
-static inline std::vector<std::string> filterTextureMap(const Wad3Reader& reader, std::string filter)
+TextureTest::TextureTest(const std::string& _filter) : filter(toLowerCase(_filter))
 {
-    filter = toLowerCase(filter);
-
-	std::vector<std::string> matches;
-    for (const auto& dirEntry : reader.m_dirEntries)
-    {
-        std::string entryName = toLowerCase(dirEntry.szName);
-		if (wildcardCompare(filter, entryName))
-			matches.emplace_back(dirEntry.szName);
-    }
-	return matches;
+    wildcardPos = filter.find('*');
+    hasWildcard = wildcardPos != std::string::npos;
 }
 
-wadPathMap findTextureInWads(
-	const std::set<std::filesystem::path>& globs,
-	const std::string& filter,
-	wadReaderMap& readers
-)
+bool TextureTest::test(const std::string_view& textureName) const
 {
-	wadPathMap matchMap;
+    if (filter.length() > (textureName.length() + 1))
+        return false;
 
-	for (const auto& glob : globs)
-	{
-        if (!readers.contains(glob))
+    if (!hasWildcard)
+        return textureName == filter;
+
+    if (wildcardPos == 0)
+    {
+        size_t searchLength = filter.length() - 1;
+        return textureName.compare(textureName.length() - searchLength, searchLength, filter.substr(1, searchLength)) == 0;
+    }
+
+    return textureName.compare(0, wildcardPos, filter.substr(0, wildcardPos)) == 0;
+}
+
+
+
+void Options::findGlobsInDir(fs::path dir)
+{
+    if (bsp)
+    {
+        for (const auto& entry : fs::directory_iterator(dir))
         {
-            try
+            if (const fs::path& entryPath = entry.path(); toLowerCase(entryPath.extension().string()) == ".bsp")
             {
-                readers.insert_or_assign(glob, std::make_unique<Wad3Reader>(glob));
-            }
-            catch (const std::runtime_error& e)
-            {
-                logger.debug(e.what());
-                continue;
+                fs::path shortGlob = entryPath.parent_path().parent_path().parent_path().stem()
+                    / entryPath.parent_path().parent_path().stem() / entryPath.parent_path().stem() / entryPath.filename();
+                globs.insert(shortGlob);
             }
         }
 
-        Wad3Reader& reader = *readers.at(glob);
+        return;
+    }
 
-		std::vector<std::string> matches = filterTextureMap(reader, filter);
+    for (const auto& entry : fs::directory_iterator(dir))
+    {
+        if (const fs::path& entryPath = entry.path(); toLowerCase(entryPath.extension().string()) == ".wad")
+        {
+            if (std::find(c_WadSkipList.begin(), c_WadSkipList.end(), toLowerCase(entryPath.stem().string())) != c_WadSkipList.end())
+                continue;
 
-		for (const auto& match : matches)
-		{
-            if (!matchMap.contains(match))
-                matchMap[match] = {};
-
-            matchMap.at(match).push_back(readers.at(glob).get());
-		}
-	}
-
-	return matchMap;
+            fs::path shortGlob = entryPath.parent_path().parent_path().stem()
+                / entryPath.parent_path().stem() / entryPath.filename();
+            globs.insert(shortGlob);
+        }
+    }
 }
 
-
-static inline void findMods(std::set<std::filesystem::path>& modDirs, const std::filesystem::path& gameDir, const std::string& mod)
+void Options::findGlobsInPipes(fs::path modDir)
 {
-    if (!std::filesystem::is_directory(gameDir)) return;
+    std::string baseMod = modDir.stem().string();
+    gamePath = modDir.parent_path();
 
-    if (!mod.empty())
+    if (bsp)
     {
-        for (const auto &dirEntry : std::filesystem::directory_iterator(gameDir))
+        if (fs::is_directory(modDir / "maps"))
+            findGlobsInDir(modDir / "maps");
+
+        for (const auto& pipe : c_SteamPipes)
         {
-            std::filesystem::path entryPath = dirEntry.path();
-            if (entryPath.stem().string() == mod)
-            {
-                modDirs.insert(entryPath.parent_path() / unsteampipe(entryPath.stem().string()));
-                return;
-            }
+            modDir = gamePath / (baseMod + pipe);
+            if (fs::is_directory(modDir / "maps"))
+                findGlobsInDir(modDir / "maps");
         }
         return;
     }
 
-    for (const auto& dirEntry : std::filesystem::directory_iterator(gameDir))
-    {
-        std::filesystem::path entryPath = dirEntry.path();
-        if (!std::filesystem::is_directory(entryPath) || !std::filesystem::exists(entryPath / "liblist.gam"))
-            continue;
+    if (fs::is_directory(modDir))
+        findGlobsInDir(modDir);
 
-        modDirs.insert(entryPath.parent_path() / unsteampipe(entryPath.stem().string()));
+    for (const auto& pipe : c_SteamPipes)
+    {
+        modDir = gamePath / (baseMod + pipe);
+        if (fs::is_directory(modDir))
+            findGlobsInDir(modDir);
     }
 }
 
-static inline std::set<std::filesystem::path> findModDirs(const std::filesystem::path& steamDir, const std::string& mod = "")
+void Options::findAllMods()
 {
-    std::set<std::filesystem::path> modDirs;
-    std::filesystem::path common{ steamDir / "steamapps" / "common" };
+    if (fs::is_directory(steamCommonDir / "Sven Co-op/svencoop"))
+        modDirs.emplace_back(steamCommonDir / "Sven Co-op/svencoop");
 
-    if (!std::filesystem::is_directory(common))
+    if (!fs::is_directory(steamCommonDir / "Half-Life"))
+        return;
+
+    for (const auto& entry : fs::directory_iterator(steamCommonDir / "Half-Life"))
     {
-        modDirs.insert(steamDir);
-        return modDirs;
+        if (!fs::exists(steamCommonDir / "Half-Life" / entry / "liblist.gam"))
+            continue;
+
+        modDirs.emplace_back(steamCommonDir / "Half-Life" / entry);
     }
-
-    findMods(modDirs, common / "Half-Life", mod);
-    findMods(modDirs, common / "Sven Co-op", mod);
-
-    return modDirs;
 }
 
-
-int whichwad(const Options& options)
+void Options::findGlobs()
 {
-    std::set<std::filesystem::path> globs;
-
-    for (const std::filesystem::path& modDir : findModDirs(options.steamDir, options.mod))
-        findWadFilesPipes(modDir, globs);
-
-    logger.debug("Found %i WAD files", globs.size());
-
-
-    std::unordered_map<std::string, wadPathMap> matchingWads;
-    wadPathMap matches;
-    wadReaderMap readers;
-
-    for (std::string const& tex : options.textures)
+    if (fs::is_directory(g_options.steamDir) && !fs::is_directory(g_options.steamCommonDir))
     {
-        matches = findTextureInWads(globs, tex, readers);
-
-        if (matches.size() == 0)
-        {
-            std::cout << style(error) << "No texture names matching " << style()
-                << style(info|bold) << tex << style()
-                << style(error) << " not found in any WAD in the search path" << style() << std::endl;
-            continue;
-        }
-
-        matchingWads[tex] = matches;
-
-        if (options.everything)
-        {
-            std::cout << style(info|bold) << matches.size() << style()
-                << style(info) << " textures found" << std::endl;
-            continue;
-        }
-
-        std::cout << style(info|bold) << matches.size()
-            << style(info) << " texture names matching "
-            << style(info|bold) << tex
-            << style(info) << " found:" << style() << std::endl;
-
-        for (const auto& kv : matches)
-        {
-            std::cout << style(warning) << "  " << toUpperCase(kv.first) << style()
-                << " found in " << kv.second.size() << " WADS:" << std::endl;
-
-            for (const auto& reader : kv.second)
-                std::cout << style(brightBlack) << "    " << reader->m_filepath.string() << std::endl;
-        }
+        findGlobsInDir(g_options.steamDir);
+        return;
     }
 
-    if (!options.extract || matchingWads.size() == 0)
-        return EXIT_SUCCESS;
-
-    std::cout << "\n";
-
-    // Check if output dir exists, or create it
-    std::filesystem::path outputPath{ options.outputDir };
-    if (!std::filesystem::exists(options.outputDir) && !std::filesystem::is_directory(outputPath))
+    if (mods.empty())
+        findAllMods();
+    else
     {
-        std::cout << style(warning)
-            << std::filesystem::absolute(outputPath).string() + " does not exist. Create it? (Y/n) "
-            << style();
-
-        if (!confirm_dialogue(true))
+        for (const auto& mod : mods)
         {
-            std::cout << "Output dir not created, aborted\n";
-            return EXIT_SUCCESS;
-        }
+            if (mod == "svencoop")
+                gamePath = g_options.steamCommonDir / "Sven Co-op";
+            else
+                gamePath = g_options.steamCommonDir / "Half-Life";
 
-        if (std::filesystem::create_directories(outputPath))
-        {
-            printSuccess(std::filesystem::absolute(outputPath).string() + " created\n");
-        }
-        else
-        {
-            logger.error("Could not create directory '%s'", std::filesystem::absolute(outputPath).string());
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    std::string outputFile;
-    bool chosenMultiWad;
-    for (const auto& kv : matchingWads)
-    {
-        for (auto& matchReaders : kv.second)
-        {
-            outputFile = (outputPath / matchReaders.first).string() + ".bmp";
-
-            if (matchReaders.second.size() == 1)
+            fs::path modDir = gamePath / mod;
+            if (!std::filesystem::is_directory(modDir))
             {
-                Wad3Reader& reader = *matchReaders.second[0];
-
-                std::cout << style(info) << "Saving texture from "
-                    << reader.m_filepath.filename().string() << " to " << style()
-                    << style(info|bold) << outputFile << style() << std::endl;
-
-                reader.extract(matchReaders.first, outputPath);
+                logger.warning("\"" + modDir.string() + "\" is not a directory");
                 continue;
             }
-
-            std::cout << toUpperCase(matchReaders.first) << style(green)
-                << " found in " << matchReaders.second.size()
-                << " WADs. It's time to choose:" << style() << std::endl;
-
-            chosenMultiWad = false;
-            for (const auto& reader : matchReaders.second)
-            {
-                std::string readerFilename = reader->m_filepath.filename().string();
-                std::cout << "Extract from " + readerFilename + "? (Y/n) ";
-
-                if (confirm_dialogue(true))
-                {
-                    chosenMultiWad = true;
-                    std::cout << style(info) << "Saving texture from " << readerFilename << " to " << style()
-                        << style(info|bold) << outputFile << style() << std::endl;
-
-                    reader->extract(matchReaders.first, outputPath);
-                    break;
-                }
-            }
-
-            if (!chosenMultiWad)
-                std::cout << style(warning) << toUpperCase(matchReaders.first) << " was not extracted" << style() << std::endl;
+            modDirs.push_back(std::move(modDir));
         }
     }
 
-    return EXIT_SUCCESS;
+    for (const auto& modDir : modDirs)
+        findGlobsInPipes(modDir);
+}
+
+void Options::checkGlobs()
+{
+    for (const auto& glob : globs)
+    {
+        std::unique_ptr<BaseReader> reader;
+
+        try
+        {
+            if (bsp)
+                reader = std::make_unique<BspReader>(glob);
+            else
+                reader = std::make_unique<Wad3Reader>(glob);
+        }
+        catch (const std::runtime_error& e)
+        {
+            if (logger.getLevel() > Logging::LogLevel::LOG_DEBUG)
+                continue;
+            logger.warning("Could not read " + glob.string() + ". Reason: " + e.what());
+        }
+    }
+}
+
+
+Wad3Reader::Wad3Reader(const std::filesystem::path& filepath) : BaseReader(filepath)
+{
+    using namespace WAD3Format;
+
+    open();
+
+    m_file.read(reinterpret_cast<char*>(&m_header), sizeof(Wad3Header));
+
+    if (strncmp(m_header.szMagic, "WAD3", 4))
+    {
+        m_file.close();
+        throw std::runtime_error("Unexpected WAD format");
+    }
+
+    parse();
+    m_file.close();
+}
+
+void Wad3Reader::open()
+{
+    m_file.open(g_options.steamCommonDir / m_filepath, std::ios::binary);
+    if (!m_file.is_open() || !m_file.good())
+    {
+        m_file.close();
+        throw std::runtime_error("Could not open " + m_filepath.string());
+    }
+}
+
+bool Wad3Reader::contains(const std::string_view& textureName) const
+{
+    return std::ranges::find_if(m_dirEntries, [textureName](const WAD3Format::Wad3DirEntry& dirEntry) {
+        return toLowerCase(dirEntry.szName) == textureName;
+        }) != m_dirEntries.end();
+}
+
+bool Wad3Reader::extract(const std::string& textureName, const std::filesystem::path& outPath)
+{
+    using namespace WAD3Format;
+    using namespace BMP;
+
+    // Read texture data from WAD
+
+    const Wad3DirEntry* dirEntry = getDirEntry(textureName);
+    if (dirEntry == nullptr)
+    {
+        std::cerr << style(warning) << "Could not extract \"" + textureName + "\" from " + m_filepath.string() << std::endl;
+        return false;
+    }
+
+    if (dirEntry->nType != EntryType::MIPTEX)
+    {
+        std::cerr << style(warning) << "Texture \"" + textureName + "\" is not a MipTex type" << std::endl;
+        return false;
+    }
+
+    open();  // Make sure file is opened
+
+    m_file.seekg(dirEntry->nFilePos);
+
+    Wad3MipTex miptex{};
+    m_file.read((char*)&miptex, sizeof(Wad3MipTex));
+
+    size_t width = miptex.nWidth;
+    size_t height = miptex.nHeight;
+    size_t textureSize = width * height;
+    std::vector<unsigned char> data(textureSize, {});
+
+    m_file.seekg(dirEntry->nFilePos + miptex.nOffsets[0]);
+
+    m_file.read((char*)data.data(), textureSize);  // Read mipmap 0
+
+    m_file.seekg((width >> 1) * (height >> 1), std::ios::cur);  // Skip mipmap 1
+    m_file.seekg((width >> 2) * (height >> 2), std::ios::cur);  // Skip mipmap 2
+    m_file.seekg((width >> 3) * (height >> 3), std::ios::cur);  // Skip mipmap 3
+    m_file.seekg(sizeof(int16_t), std::ios::cur); // Skip colours used (always 256 here)
+
+    unsigned char palette[c_PALETTESIZE]{};
+    m_file.read((char*)&palette[0], c_PALETTESIZE);
+
+    m_file.close();
+
+
+    // Prepare data for BMP
+
+    BMP8Bpp bmp(static_cast<int>(width), static_cast<int>(height));
+    bmp.m_data = std::vector<unsigned char>(textureSize);
+
+    // Vertically flip data
+
+    size_t currentPos = (height - 1) * width;
+    for (int i = 0; i < height; ++i)
+    {
+        std::copy_n(&data[currentPos], width, &bmp.m_data[width * i]);
+        currentPos -= width;
+    }
+
+    // Convert palette from RGB to BGRA
+
+    bmp.m_palette = std::vector<unsigned char>(c_BMPPALETTESIZE * 4);
+    BGRA bgra;
+    for (int i = 0, j = 0; i < c_BMPPALETTESIZE; ++i)
+    {
+        bgra = {
+            palette[i * 3 + 2],
+            palette[i * 3 + 1],
+            palette[i * 3],
+            0x00
+        };
+        std::copy_n((char*)&bgra, sizeof(BGRA), &bmp.m_palette[i * sizeof(BGRA)]);
+    }
+
+
+    // Save BMP
+
+    std::filesystem::path filepath = outPath / (std::string{ miptex.szName } + ".bmp");
+    return bmp.save(filepath);
+}
+
+void Wad3Reader::parse()
+{
+    using namespace WAD3Format;
+
+    m_file.seekg(m_header.nDirOffset, std::ios::beg);
+    m_dirEntries.assign(m_header.nDir, {});
+    for (int i = 0; i < m_header.nDir; ++i)
+    {
+        m_file.read(reinterpret_cast<char*>(&(m_dirEntries[i])), sizeof(Wad3DirEntry));
+        for (auto& test : g_options.tests)
+        {
+            std::string texName = toLowerCase(m_dirEntries[i].szName);
+            if (test.test(texName))
+            {
+                test.matches[texName].push_back(m_filepath);
+                ++g_options.foundMatches;
+            }
+        }
+    }
+}
+
+const WAD3Format::Wad3DirEntry* Wad3Reader::getDirEntry(const std::string& textureName) const
+{
+    using namespace WAD3Format;
+
+    for (const Wad3DirEntry& dirEntry : m_dirEntries)
+    {
+        if (toLowerCase(textureName) == toLowerCase(dirEntry.szName))
+            return &dirEntry;
+    }
+
+    return nullptr;
+}
+
+
+BspReader::BspReader(const std::filesystem::path& filepath) : BaseReader(filepath)
+{
+    using namespace BSPFormat;
+
+    open();
+
+    m_file.read(reinterpret_cast<char*>(&m_header), sizeof(BspHeader));
+
+    if (m_header.version != 30 && m_header.version != 29)
+    {
+        m_file.close();
+        throw std::runtime_error("Unexpected BSP version: " + std::to_string(m_header.version));
+    }
+
+    parse();
+    m_file.close();
+}
+
+bool BspReader::contains(const std::string_view& textureName) const
+{
+    return std::ranges::find_if(m_textures, [textureName](const WAD3Format::Wad3MipTex& miptex) {
+        return toLowerCase(miptex.szName) == textureName;
+    }) != m_textures.end();
+}
+
+void BspReader::open()
+{
+    m_file.open(g_options.steamCommonDir / m_filepath, std::ios::binary);
+    if (!m_file.is_open() || !m_file.good())
+    {
+        m_file.close();
+        throw std::runtime_error("Could not open " + m_filepath.string());
+    }
+}
+
+const WAD3Format::Wad3MipTex* BspReader::getMipTex(const std::string& textureName) const
+{
+    using namespace WAD3Format;
+
+    for (const Wad3MipTex& dirEntry : m_textures)
+    {
+        if (toLowerCase(textureName) == toLowerCase(dirEntry.szName))
+            return &dirEntry;
+    }
+
+    return nullptr;
+}
+
+bool BspReader::extract(const std::string& textureName, const std::filesystem::path& outPath)
+{
+    using namespace BSPFormat;
+    using namespace WAD3Format;
+    using namespace BMP;
+
+    // Read texture data from WAD
+
+    const Wad3MipTex* miptex = getMipTex(textureName);
+    if (miptex == nullptr)
+    {
+        std::cerr << style(warning) << "Could not extract \"" + textureName + "\" from " + m_filepath.string() << std::endl;
+        return false;
+    }
+
+    open();  // Make sure file is opened
+
+    size_t width = miptex->nWidth;
+    size_t height = miptex->nHeight;
+    size_t textureSize = width * height;
+
+    std::vector<unsigned char> data(textureSize);
+    std::vector<unsigned char> palette(c_PALETTESIZE);
+
+    m_file.seekg(miptex->nOffsets[0]);
+    m_file.read(reinterpret_cast<char*>(&data[0]), textureSize);  // Read mipmap 0
+    m_file.seekg((width >> 1) * (height >> 1), std::ios::cur);  // Skip mipmap 1
+    m_file.seekg((width >> 2) * (height >> 2), std::ios::cur);  // Skip mipmap 2
+    m_file.seekg((width >> 3) * (height >> 3), std::ios::cur);  // Skip mipmap 3
+    m_file.seekg(sizeof(int16_t), std::ios::cur); // Skip colours used (always 256 here)
+
+    m_file.read((char*)&palette[0], c_PALETTESIZE);
+
+    m_file.close();
+
+
+    // Prepare data for BMP
+
+    BMP8Bpp bmp(static_cast<int>(width), static_cast<int>(height));
+    bmp.m_data = std::vector<unsigned char>(textureSize);
+
+    // Vertically flip data
+
+    size_t currentPos = (height - 1) * width;
+    for (int i = 0; i < height; ++i)
+    {
+        std::copy_n(&data[currentPos], width, &bmp.m_data[width * i]);
+        currentPos -= width;
+    }
+
+    // Convert palette from RGB to BGRA
+
+    bmp.m_palette = std::vector<unsigned char>(c_BMPPALETTESIZE * 4);
+    BGRA bgra;
+    for (int i = 0, j = 0; i < c_BMPPALETTESIZE; ++i)
+    {
+        bgra = {
+            palette[i * 3 + 2],
+            palette[i * 3 + 1],
+            palette[i * 3],
+            0x00
+        };
+        std::copy_n((char*)&bgra, sizeof(BGRA), &bmp.m_palette[i * sizeof(BGRA)]);
+    }
+
+
+    // Save BMP
+
+    std::filesystem::path filepath = outPath / (std::string{ miptex->szName } + ".bmp");
+    return bmp.save(filepath);
+}
+
+void BspReader::parse()
+{
+    using namespace BSPFormat;
+
+    BspLump& textureLump = m_header.lumps[Textures];
+    m_file.seekg(textureLump.offset, std::ios::beg);
+
+    std::uint32_t countMipTextures{};
+    m_file.read(reinterpret_cast<char*>(&countMipTextures), sizeof(std::uint32_t));
+    m_textures.assign(countMipTextures, {});
+
+
+    std::streampos temp;
+    std::int32_t mipTexOffset{};
+    for (unsigned int i = 0; i < countMipTextures; ++i)
+    {
+        m_file.read(reinterpret_cast<char*>(&mipTexOffset), sizeof(std::int32_t));
+        temp = m_file.tellg();
+        m_file.seekg(static_cast<size_t>(textureLump.offset) + mipTexOffset, std::ios::beg);
+        m_file.read(reinterpret_cast<char*>(&m_textures[i]), sizeof(WAD3Format::Wad3MipTex));
+
+        if (m_textures[i].nOffsets[0] == 0)
+        {
+            m_file.seekg(temp, std::ios::beg);
+            continue;
+        }
+
+        for (int j = 0; j < WAD3Format::c_MIPLEVELS; ++j)
+            m_textures[i].nOffsets[j] += static_cast<size_t>(textureLump.offset) + mipTexOffset;
+        m_file.seekg(temp, std::ios::beg);
+
+        for (auto& test : g_options.tests)
+        {
+            std::string texName = toLowerCase(m_textures[i].szName);
+            if (test.test(texName))
+            {
+                test.matches[texName].push_back(m_filepath);
+                ++g_options.foundMatches;
+            }
+        }
+    }
 }

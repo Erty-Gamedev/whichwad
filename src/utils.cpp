@@ -1,8 +1,9 @@
+#include <array>
 #include <string>
 #include <algorithm>
 #include <iostream>
-#include <cctype>
 #include <fstream>
+#include <cctype>
 #include <set>
 #include "utils.h"
 #include "logging.h"
@@ -18,7 +19,7 @@ static Logging::Logger& logger = Logging::Logger::getLogger("whichwad");
 
 #ifdef _WIN32
 #include <Windows.h>
-#elif __linux__
+#else
 #include <limits.h>
 #include <unistd.h>
 #endif
@@ -38,7 +39,8 @@ static inline std::filesystem::path getExeDir()
     return std::filesystem::canonical("/proc/self/exe").parent_path();
 #endif
 }
-static inline std::filesystem::path configFilePath = getExeDir() / "whichwad.conf";
+static inline const std::filesystem::path c_exedir = getExeDir();
+static inline const std::filesystem::path configFilePath = c_exedir / "whichwad.conf";
 static inline std::unordered_map<std::string, std::string> g_configs;
 
 
@@ -191,63 +193,18 @@ std::string toUpperCase(std::string str)
 
 std::string unsteampipe(std::string str)
 {
-    for (const char* pipe: c_STEAM_PIPES)
+    if (str.empty())
+        return str;
+
+    for (const auto& steampipe : c_SteamPipes)
     {
-        size_t matchPosition = str.rfind(pipe);
-        if (matchPosition != std::string::npos)
+        if (const size_t matchPosition = str.rfind(steampipe); matchPosition != std::string::npos)
         {
-            str.replace(matchPosition, std::string(pipe).length(), "");
+            str.replace(matchPosition, steampipe.length(), "");
             return str;
         }
     }
     return str;
-}
-
-void findWadFiles(std::filesystem::path modpath, std::set<std::filesystem::path>& globs)
-{
-    std::filesystem::path filepath;
-    std::string filestem;
-    bool shouldSkip;
-
-    for (auto const& file : std::filesystem::directory_iterator(modpath))
-    {
-        filepath = file.path();
-
-        if (filepath.extension() == ".wad")
-        {
-            filestem = toLowerCase(filepath.stem().string());
-            shouldSkip = false;
-
-            for (const char* skip : c_WAD_SKIP_LIST)
-            {
-                if (strcmp(skip, (char*)filestem.c_str()) == 0)
-                {
-                    shouldSkip = true;
-                    break;
-                }
-            }
-
-            if (!shouldSkip) { globs.insert(filepath); }
-        }
-    }
-}
-
-void findWadFilesPipes(std::filesystem::path modpath, std::set<std::filesystem::path>& globs)
-{
-    std::filesystem::path steampiped;
-
-    // Gather WAD files from _addon, _hd and _downloads (if they exist)
-    for (const char* pipe : c_STEAM_PIPES)
-    {
-        steampiped = std::filesystem::path(modpath.string() + pipe);
-        if (std::filesystem::is_directory(steampiped))
-        {
-            findWadFiles(std::filesystem::path(modpath.string() + pipe), globs);
-        }
-    }
-
-    // Gather WAD files from main folder
-    findWadFiles(modpath, globs);
 }
 
 std::vector<std::string> splitString(const std::string& str, const char delimiter)

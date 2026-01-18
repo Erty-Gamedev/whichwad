@@ -1,15 +1,17 @@
 #pragma once
 
-#include <cstring>
 #include <filesystem>
 #include <vector>
+#include <array>
 #include <set>
-#include <unordered_map>
 
-#ifdef _WIN32
-#include <wchar.h>
-#include <windows.h>
-#endif
+
+static inline const std::array<std::string, 3> c_SteamPipes{
+    "_addon", "_hd", "_downloads"
+};
+static inline const std::array<std::string, 5> c_WadSkipList{
+    "cached", "fonts", "gfx", "spraypaint", "tempdecal"
+};
 
 
 void printUsage();
@@ -19,8 +21,6 @@ std::filesystem::path getSteamDir();
 std::string toLowerCase(std::string str);
 std::string toUpperCase(std::string str);
 std::string unsteampipe(std::string str);
-void findWadFiles(std::filesystem::path modpath, std::set<std::filesystem::path>& globs);
-void findWadFilesPipes(std::filesystem::path modpath, std::set<std::filesystem::path>& globs);
 std::vector<std::string> splitString(const std::string& str, const char delimiter = ' ');
 void trim(std::string& str, const char* trim = " \t\n\r");
 
