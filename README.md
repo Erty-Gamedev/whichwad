@@ -51,6 +51,10 @@ Entering an asterisk (`*`) in the search term will match a texture name by prefi
 This way you can match any texture name beginning with *generic*
 by searching for "generic\*", or any texture name ending with *wall* by searching for "\*wall".
 
+### BSP Search
+
+Use the `--bsp` argument to search for textures embedded in BSP files instead.
+
 ### Extract textures
 
 Textures can also be extracted from the found WAD files using the `--extract` argument.

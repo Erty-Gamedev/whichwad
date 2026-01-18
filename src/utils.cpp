@@ -118,6 +118,7 @@ void printUsage()
         << " --output    -o    (path)    output directory for extracted textures (default: extracted)\n"
         << " --steamdir  -s    (path)    Steam directory to use for this search\n"
         << " --mod       -m    (text)    check this mod only\n"
+        << " --bsp       -b    (text)    search textures embedded in BSP files instead\n"
         << std::endl;
 }
 
