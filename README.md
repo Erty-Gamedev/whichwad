@@ -36,7 +36,7 @@ This setting can be changed by editing whichwad.conf created next to the executa
 To find which WAD in CS 1.6 that *some_texture* exists in, use the `--mod` argument:
 
 ```cli
-whichwad.exe some_texture --mod cstrike
+whichwad some_texture --mod cstrike
 ```
 
 ### Search for multiple textures
@@ -57,11 +57,10 @@ Use the `--bsp` argument to search for textures embedded in BSP files instead.
 
 ### Extract textures
 
-Textures can also be extracted from the found WAD files using the `--extract` argument.
-The `--output` argument can be used to specify where to extract the textures to.
+Textures can also be extracted from the found WAD and BSP files using the `--extract` argument.
+The `--output` argument can be used to specify where to extract the textures to. This is by default a folder called *extracted* and is relative to the current
+working directory.
 
 ```cli
-whichwad.exe generic1 generic3 --mod cstrike --extract --output C:/projects/cs_banana/extracted
+whichwad generic1 generic3 --mod cstrike --extract --output C:/projects/cs_banana/extracted
 ```
-
-By default extracted textures will be placed in a subfolder of the script named *extracted*.
