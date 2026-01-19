@@ -11,6 +11,7 @@ int _CRT_glob = 0;
 
 static Logging::Logger& logger = Logging::Logger::getLogger("whichwad");
 using namespace Styling;
+namespace fs = std::filesystem;
 
 
 static void handleArgs(const int argc, char* argv[])
@@ -54,7 +55,7 @@ static void handleArgs(const int argc, char* argv[])
             ++i;
             if (i < argc)
             {
-                if (std::filesystem::is_directory(argv[i]))
+                if (fs::is_directory(argv[i]))
                 {
                     g_options.steamDir = argv[i];
                     continue;
@@ -120,7 +121,7 @@ static void handleArgs(const int argc, char* argv[])
     if (g_options.steamDir.empty())
         g_options.steamDir = getSteamDir();
 
-    if (std::filesystem::is_directory(g_options.steamDir / "steamapps/common"))
+    if (fs::is_directory(g_options.steamDir / "steamapps/common"))
         g_options.steamCommonDir = g_options.steamDir / "steamapps/common";
 }
 
@@ -153,7 +154,7 @@ int main(int argc, char** argv)
     // Return signal handler to default
     std::signal(SIGINT, SIG_DFL);
 
-    std::unordered_map<std::string, std::set<std::filesystem::path>> foundTextures;
+    std::unordered_map<std::string, std::set<fs::path>> foundTextures;
 
     for (const auto& test : g_options.tests)
     {
@@ -196,10 +197,10 @@ int main(int argc, char** argv)
     std::cout << std::endl;
 
     // Check if output dir exists, or create it
-    if (!std::filesystem::is_directory(g_options.outputDir))
+    if (!fs::is_directory(g_options.outputDir))
     {
         std::cout << style(warning)
-            << std::filesystem::absolute(g_options.outputDir).string() + " does not exist. Create it? (Y/n) "
+            << fs::absolute(g_options.outputDir).string() + " does not exist. Create it? (Y/n) "
             << style();
 
         if (!confirm_dialogue(true))
@@ -208,11 +209,11 @@ int main(int argc, char** argv)
             return EXIT_SUCCESS;
         }
 
-        if (std::filesystem::create_directories(g_options.outputDir))
-            printSuccess(std::filesystem::absolute(g_options.outputDir).string() + " created\n");
+        if (fs::create_directories(g_options.outputDir))
+            printSuccess(fs::absolute(g_options.outputDir).string() + " created\n");
         else
         {
-            logger.error("Could not create directory '%s'", std::filesystem::absolute(g_options.outputDir).string());
+            logger.error("Could not create directory '%s'", fs::absolute(g_options.outputDir).string());
             return EXIT_FAILURE;
         }
     }
@@ -246,32 +247,69 @@ int main(int argc, char** argv)
             << " found in " << globs.size() << " " << ext
             << "s. It's time to choose:" << style() << std::endl;
 
-        bool chosenMultiWad = false;
+        size_t index = 0;
+        std::vector<fs::path> choices(globs.size());
         for (const auto& glob : globs)
         {
-            const std::string& readerFilename = glob.filename().string();
-            std::cout << "Extract from " + readerFilename + "? (Y/n) ";
+            choices[index] = glob;
+            std::cout << "[" << index << "] " << glob.filename().string() << std::endl;
+            ++index;
+        }
 
-            if (confirm_dialogue(true))
+        std::cout << ext << " to extract from (default 0): ";
+
+        std::string buffer;
+        std::getline(std::cin, buffer);
+
+        size_t choice = 0;
+        if (!buffer.empty())
+        {
+            char* err;
+            double numeric;
+
+            while (true)
             {
-                chosenMultiWad = true;
-                std::unique_ptr<BaseReader> reader;
+                numeric = std::strtod(buffer.c_str(), &err);
 
-                if (g_options.bsp)
-                    reader = std::make_unique<BspReader>(glob);
-                else
-                    reader = std::make_unique<Wad3Reader>(glob);
+                if (*err)
+                {
+                    fs::path choiceStr{err};
+                    for (size_t i = 0; i < choices.size(); ++i)
+                    {
+                        const fs::path& glob = choices[i];
 
-                std::cout << style(info) << "Saving texture from " << readerFilename << " to " << style()
-                    << style(info | bold) << outputFile << style() << std::endl;
+                        if (toLowerCase(choiceStr.stem().string()) == toLowerCase(glob.stem().string())
+                            || toLowerCase(choiceStr.filename().string()) == toLowerCase(glob.filename().string()))
+                        {
+                            choice = i;
+                            goto CHOICE_MADE;
+                        }
+                    }
+                }
+                else if (numeric >= 0 && numeric < choices.size())
+                {
+                    choice = numeric;
+                    goto CHOICE_MADE;
+                }
 
-                if (!reader->extract(textureName, g_options.outputDir))
-                    std::cout << style(warning) << "Could not save " << outputFile << std::endl;
-                break;
+                std::cout << "Invalid filename/index, try again: ";
+                std::getline(std::cin, buffer);
             }
         }
 
-        if (!chosenMultiWad)
-            std::cout << style(warning) << toUpperCase(textureName) << " was not extracted" << style() << std::endl;
+        CHOICE_MADE:
+
+        std::unique_ptr<BaseReader> reader;
+
+        if (g_options.bsp)
+            reader = std::make_unique<BspReader>(choices[choice]);
+        else
+            reader = std::make_unique<Wad3Reader>(choices[choice]);
+
+        std::cout << style(info) << "Saving texture from " << choices[choice].filename().string() << " to " << style()
+            << style(info | bold) << outputFile << style() << std::endl;
+
+        if (!reader->extract(textureName, g_options.outputDir))
+            std::cout << style(warning) << "Could not save " << outputFile << std::endl;
     }
 }
