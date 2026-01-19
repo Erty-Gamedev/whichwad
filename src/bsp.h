@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
-
 /*
 	Based on the Unofficial BSP v30 File Spec by dixxi1 (Bernhard Gruber)
 	https://web.archive.org/web/20240313170323/https://hlbsp.sourceforge.net/index.php?content=bspdef

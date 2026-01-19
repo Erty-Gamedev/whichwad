@@ -44,7 +44,7 @@ namespace BMP
     {
     private:
         BMPHeader m_header;
-        BMPInfoHeader m_infoHeader;
+        BMPInfoHeader m_infoHeader{};
         std::ofstream m_file;
     public:
         std::vector<unsigned char> m_data;

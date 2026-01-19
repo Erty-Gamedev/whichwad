@@ -3,16 +3,16 @@
 #include "bmp8bpp.h"
 
 
-BMP::BMP8Bpp::BMP8Bpp(int width, int height)
+BMP::BMP8Bpp::BMP8Bpp(const int width, const int height)
 {
-	int size = width * height;
+	const int size = width * height;
 	m_header = {
-		.filesize = uint32_t(c_BMPSIZEHEADER + size),
+		.filesize = static_cast<uint32_t>(c_BMPSIZEHEADER + size),
 		.dataOffset = c_BMPSIZEHEADER
 	};
 	m_infoHeader = {
-		uint32_t(40), uint32_t(width), uint32_t(height),
-		uint16_t(1), uint16_t(8), uint32_t(0), uint32_t(size),
+		static_cast<uint32_t>(40), static_cast<uint32_t>(width), static_cast<uint32_t>(height),
+		static_cast<uint16_t>(1), static_cast<uint16_t>(8), static_cast<uint32_t>(0), static_cast<uint32_t>(size),
 		3780, // Horizontal pixels per meter
 		3780, // Vertical pixels per meter
 		256,  // Number of colours used (always 256 here)
@@ -35,10 +35,10 @@ bool BMP::BMP8Bpp::save(const std::filesystem::path& filepath)
 		exit(EXIT_FAILURE);
 	}
 
-	m_file.write((char*)&m_header, sizeof(m_header));
-	m_file.write((char*)&m_infoHeader, sizeof(m_infoHeader));
-	m_file.write((char*)&m_palette[0], c_BMPPALETTESIZE * 4);
-	m_file.write((char*)&m_data[0], static_cast<size_t>(m_infoHeader.width) * m_infoHeader.height);
+	m_file.write(reinterpret_cast<char*>(&m_header), sizeof(m_header));
+	m_file.write(reinterpret_cast<char*>(&m_infoHeader), sizeof(m_infoHeader));
+	m_file.write(reinterpret_cast<char*>(&m_palette[0]), c_BMPPALETTESIZE * 4);
+	m_file.write(reinterpret_cast<char*>(&m_data[0]), static_cast<std::streamsize>(m_infoHeader.width) * m_infoHeader.height);
 
 	m_file.close();
 

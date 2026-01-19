@@ -1,5 +1,6 @@
 #include <set>
 #include <ranges>
+#include <cstring>
 #include <iostream>
 #include "utils.h"
 #include "whichwad.h"
@@ -31,7 +32,7 @@ bool TextureTest::test(const std::string_view& textureName) const
 
     if (wildcardPos == 0)
     {
-        size_t searchLength = filter.length() - 1;
+        const size_t searchLength = filter.length() - 1;
         return textureName.compare(textureName.length() - searchLength, searchLength, filter.substr(1, searchLength)) == 0;
     }
 
@@ -40,7 +41,7 @@ bool TextureTest::test(const std::string_view& textureName) const
 
 
 
-void Options::findGlobsInDir(fs::path dir)
+void Options::findGlobsInDir(const fs::path& dir)
 {
     if (bsp)
     {
@@ -61,7 +62,7 @@ void Options::findGlobsInDir(fs::path dir)
     {
         if (const fs::path& entryPath = entry.path(); toLowerCase(entryPath.extension().string()) == ".wad")
         {
-            if (std::find(c_WadSkipList.begin(), c_WadSkipList.end(), toLowerCase(entryPath.stem().string())) != c_WadSkipList.end())
+            if (std::ranges::find(c_WadSkipList, toLowerCase(entryPath.stem().string())) != c_WadSkipList.end())
                 continue;
 
             fs::path shortGlob = entryPath.parent_path().parent_path().stem()
@@ -73,7 +74,7 @@ void Options::findGlobsInDir(fs::path dir)
 
 void Options::findGlobsInPipes(fs::path modDir)
 {
-    std::string baseMod = modDir.stem().string();
+    const std::string baseMod = modDir.stem().string();
     gamePath = modDir.parent_path();
 
     if (bsp)
@@ -151,7 +152,7 @@ void Options::findGlobs()
         findGlobsInPipes(modDir);
 }
 
-void Options::checkGlobs()
+void Options::checkGlobs() const
 {
     std::cout << "\033[1E";
 
@@ -164,9 +165,9 @@ void Options::checkGlobs()
         try
         {
             if (bsp)
-                reader = std::make_unique<BspReader>(glob);
+                std::make_unique<BspReader>(glob);
             else
-                reader = std::make_unique<Wad3Reader>(glob);
+                std::make_unique<Wad3Reader>(glob);
         }
         catch (const std::runtime_error& e)
         {
@@ -195,13 +196,13 @@ Wad3Reader::Wad3Reader(const std::filesystem::path& filepath) : BaseReader(filep
 
     m_file.read(reinterpret_cast<char*>(&m_header), sizeof(Wad3Header));
 
-    if (strncmp(m_header.szMagic, "WAD3", 4))
+    if (strncmp(m_header.szMagic, "WAD3", 4) != 0)
     {
         m_file.close();
         throw std::runtime_error("Unexpected WAD format");
     }
 
-    parse();
+    Wad3Reader::parse();
     m_file.close();
 }
 
@@ -236,7 +237,7 @@ bool Wad3Reader::extract(const std::string& textureName, const std::filesystem::
         return false;
     }
 
-    if (dirEntry->nType != EntryType::MIPTEX)
+    if (dirEntry->nType != MIPTEX)
     {
         std::cerr << style(warning) << "Texture \"" + textureName + "\" is not a MipTex type" << std::endl;
         return false;
@@ -247,16 +248,16 @@ bool Wad3Reader::extract(const std::string& textureName, const std::filesystem::
     m_file.seekg(dirEntry->nFilePos);
 
     Wad3MipTex miptex{};
-    m_file.read((char*)&miptex, sizeof(Wad3MipTex));
+    m_file.read(reinterpret_cast<char*>(&miptex), sizeof(Wad3MipTex));
 
-    size_t width = miptex.nWidth;
-    size_t height = miptex.nHeight;
-    size_t textureSize = width * height;
+    const std::ifstream::off_type width = miptex.nWidth;
+    const std::ifstream::off_type height = miptex.nHeight;
+    const std::ifstream::off_type textureSize = width * height;
     std::vector<unsigned char> data(textureSize, {});
 
     m_file.seekg(dirEntry->nFilePos + miptex.nOffsets[0]);
 
-    m_file.read((char*)data.data(), textureSize);  // Read mipmap 0
+    m_file.read(reinterpret_cast<char*>(data.data()), textureSize);  // Read mipmap 0
 
     m_file.seekg((width >> 1) * (height >> 1), std::ios::cur);  // Skip mipmap 1
     m_file.seekg((width >> 2) * (height >> 2), std::ios::cur);  // Skip mipmap 2
@@ -264,7 +265,7 @@ bool Wad3Reader::extract(const std::string& textureName, const std::filesystem::
     m_file.seekg(sizeof(int16_t), std::ios::cur); // Skip colours used (always 256 here)
 
     unsigned char palette[c_PALETTESIZE]{};
-    m_file.read((char*)&palette[0], c_PALETTESIZE);
+    m_file.read(reinterpret_cast<char*>(&palette[0]), c_PALETTESIZE);
 
     m_file.close();
 
@@ -286,8 +287,8 @@ bool Wad3Reader::extract(const std::string& textureName, const std::filesystem::
     // Convert palette from RGB to BGRA
 
     bmp.m_palette = std::vector<unsigned char>(c_BMPPALETTESIZE * 4);
-    BGRA bgra;
-    for (int i = 0, j = 0; i < c_BMPPALETTESIZE; ++i)
+    BGRA bgra{};
+    for (int i = 0; i < c_BMPPALETTESIZE; ++i)
     {
         bgra = {
             palette[i * 3 + 2],
@@ -295,13 +296,13 @@ bool Wad3Reader::extract(const std::string& textureName, const std::filesystem::
             palette[i * 3],
             0x00
         };
-        std::copy_n((char*)&bgra, sizeof(BGRA), &bmp.m_palette[i * sizeof(BGRA)]);
+        std::copy_n(reinterpret_cast<char*>(&bgra), sizeof(BGRA), &bmp.m_palette[i * sizeof(BGRA)]);
     }
 
 
     // Save BMP
 
-    std::filesystem::path filepath = outPath / (std::string{ miptex.szName } + ".bmp");
+    const std::filesystem::path filepath = outPath / (std::string{ miptex.szName } + ".bmp");
     return bmp.save(filepath);
 }
 
@@ -354,7 +355,7 @@ BspReader::BspReader(const std::filesystem::path& filepath) : BaseReader(filepat
         throw std::runtime_error("Unexpected BSP version: " + std::to_string(m_header.version));
     }
 
-    parse();
+    BspReader::parse();
     m_file.close();
 }
 
@@ -405,9 +406,9 @@ bool BspReader::extract(const std::string& textureName, const std::filesystem::p
 
     open();  // Make sure file is opened
 
-    size_t width = miptex->nWidth;
-    size_t height = miptex->nHeight;
-    size_t textureSize = width * height;
+    const std::ifstream::off_type width = miptex->nWidth;
+    const std::ifstream::off_type height = miptex->nHeight;
+    const std::ifstream::off_type textureSize = width * height;
 
     std::vector<unsigned char> data(textureSize);
     std::vector<unsigned char> palette(c_PALETTESIZE);
@@ -419,7 +420,7 @@ bool BspReader::extract(const std::string& textureName, const std::filesystem::p
     m_file.seekg((width >> 3) * (height >> 3), std::ios::cur);  // Skip mipmap 3
     m_file.seekg(sizeof(int16_t), std::ios::cur); // Skip colours used (always 256 here)
 
-    m_file.read((char*)&palette[0], c_PALETTESIZE);
+    m_file.read(reinterpret_cast<char*>(&palette[0]), c_PALETTESIZE);
 
     m_file.close();
 
@@ -441,8 +442,8 @@ bool BspReader::extract(const std::string& textureName, const std::filesystem::p
     // Convert palette from RGB to BGRA
 
     bmp.m_palette = std::vector<unsigned char>(c_BMPPALETTESIZE * 4);
-    BGRA bgra;
-    for (int i = 0, j = 0; i < c_BMPPALETTESIZE; ++i)
+    BGRA bgra{};
+    for (int i = 0; i < c_BMPPALETTESIZE; ++i)
     {
         bgra = {
             palette[i * 3 + 2],
@@ -450,13 +451,13 @@ bool BspReader::extract(const std::string& textureName, const std::filesystem::p
             palette[i * 3],
             0x00
         };
-        std::copy_n((char*)&bgra, sizeof(BGRA), &bmp.m_palette[i * sizeof(BGRA)]);
+        std::copy_n(reinterpret_cast<char*>(&bgra), sizeof(BGRA), &bmp.m_palette[i * sizeof(BGRA)]);
     }
 
 
     // Save BMP
 
-    std::filesystem::path filepath = outPath / (std::string{ miptex->szName } + ".bmp");
+    const std::filesystem::path filepath = outPath / (std::string{ miptex->szName } + ".bmp");
     return bmp.save(filepath);
 }
 
@@ -472,13 +473,12 @@ void BspReader::parse()
     m_textures.assign(countMipTextures, {});
 
 
-    std::streampos temp;
     std::int32_t mipTexOffset{};
     for (unsigned int i = 0; i < countMipTextures; ++i)
     {
         m_file.read(reinterpret_cast<char*>(&mipTexOffset), sizeof(std::int32_t));
-        temp = m_file.tellg();
-        m_file.seekg(static_cast<size_t>(textureLump.offset) + mipTexOffset, std::ios::beg);
+        std::streampos temp = m_file.tellg();
+        m_file.seekg(static_cast<std::ifstream::off_type>(textureLump.offset) + mipTexOffset, std::ios::beg);
         m_file.read(reinterpret_cast<char*>(&m_textures[i]), sizeof(WAD3Format::Wad3MipTex));
 
         if (m_textures[i].nOffsets[0] == 0)
@@ -487,8 +487,8 @@ void BspReader::parse()
             continue;
         }
 
-        for (int j = 0; j < WAD3Format::c_MIPLEVELS; ++j)
-            m_textures[i].nOffsets[j] += static_cast<size_t>(textureLump.offset) + mipTexOffset;
+        for (unsigned int & nOffset : m_textures[i].nOffsets)
+            nOffset += static_cast<size_t>(textureLump.offset) + mipTexOffset;
         m_file.seekg(temp, std::ios::beg);
 
         for (auto& test : g_options.tests)

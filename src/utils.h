@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <vector>
 #include <array>
-#include <set>
 
 
 static inline const std::array<std::string, 3> c_SteamPipes{
@@ -15,13 +14,13 @@ static inline const std::array<std::string, 5> c_WadSkipList{
 
 
 void printUsage();
-bool confirm_dialogue(const bool yesDefault = true);
+bool confirm_dialogue(bool yesDefault = true);
 std::filesystem::path getSteamDir();
 
 std::string toLowerCase(std::string str);
 std::string toUpperCase(std::string str);
 std::string unsteampipe(std::string str);
-std::vector<std::string> splitString(const std::string& str, const char delimiter = ' ');
+std::vector<std::string> splitString(const std::string& str, char delimiter = ' ');
 void trim(std::string& str, const char* trim = " \t\n\r");
 
 bool wildcardCompare(const std::string& search, const std::string& haystack);

@@ -1,4 +1,6 @@
 #include <iostream>
+#include <csignal>
+#include <cstring>
 #include "utils.h"
 #include "whichwad.h"
 #include "logging.h"
@@ -131,7 +133,7 @@ extern "C" void signalHandler(int sig)
 }
 
 
-int main(int argc, char** argv)
+int main(const int argc, char** argv)
 {
     logger.setFileHandler(nullptr);
 
@@ -213,7 +215,7 @@ int main(int argc, char** argv)
             printSuccess(fs::absolute(g_options.outputDir).string() + " created\n");
         else
         {
-            logger.error("Could not create directory '%s'", fs::absolute(g_options.outputDir).string());
+            logger.error("Could not create directory '" + fs::absolute(g_options.outputDir).string() + "'");
             return EXIT_FAILURE;
         }
     }
@@ -265,11 +267,11 @@ int main(int argc, char** argv)
         if (!buffer.empty())
         {
             char* err;
-            double numeric;
+            size_t numeric;
 
             while (true)
             {
-                numeric = std::strtod(buffer.c_str(), &err);
+                numeric = static_cast<size_t>(std::strtod(buffer.c_str(), &err));
 
                 if (*err)
                 {
@@ -286,7 +288,7 @@ int main(int argc, char** argv)
                         }
                     }
                 }
-                else if (numeric >= 0 && numeric < choices.size())
+                else if (numeric < choices.size())
                 {
                     choice = numeric;
                     goto CHOICE_MADE;

@@ -50,3 +50,4 @@ test/
 # Build
 out/
 build/
+bin/

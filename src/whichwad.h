@@ -3,9 +3,7 @@
 #include <set>
 #include <string>
 #include <vector>
-#include <cstdint>
 #include <atomic>
-#include <csignal>
 #include <string_view>
 #include <unordered_map>
 #include <filesystem>
@@ -25,7 +23,7 @@ struct TextureTest
     size_t wildcardPos = std::string::npos;
     std::unordered_map<textureMatch, std::vector<readerPath>> matches;
 
-    TextureTest(const std::string& _filter);
+    explicit TextureTest(const std::string& _filter);
     bool test(const std::string_view& textureName) const;
 };
 
@@ -47,10 +45,10 @@ struct Options
     std::set<std::filesystem::path> globs;
 
     void findGlobs();
-    void checkGlobs();
+    void checkGlobs() const;
 private:
     void findGlobsInPipes(std::filesystem::path modDir);
-    void findGlobsInDir(std::filesystem::path dir);
+    void findGlobsInDir(const std::filesystem::path& dir);
     void findAllMods();
 };
 extern Options g_options;
@@ -62,7 +60,7 @@ class Wad3Reader : public BaseReader
 {
 public:
     using BaseReader::m_filepath;
-    Wad3Reader(const std::filesystem::path& filepath);
+    explicit Wad3Reader(const std::filesystem::path& filepath);
 
     bool contains(const std::string_view& textureName) const override;
     bool extract(const std::string& textureName, const std::filesystem::path& outPath) override;
@@ -80,7 +78,7 @@ class BspReader : public BaseReader
 {
 public:
     using BaseReader::m_filepath;
-    BspReader(const std::filesystem::path& filepath);
+    explicit BspReader(const std::filesystem::path& filepath);
 
     bool contains(const std::string_view& textureName) const override;
     bool extract(const std::string& textureName, const std::filesystem::path& outPath) override;

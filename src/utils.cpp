@@ -20,10 +20,9 @@ static Logging::Logger& logger = Logging::Logger::getLogger("whichwad");
 #ifdef _WIN32
 #include <Windows.h>
 #else
-#include <limits.h>
 #include <unistd.h>
 #endif
-static inline std::filesystem::path getExeDir()
+static std::filesystem::path getExeDir()
 {
 #ifdef _WIN32
     std::vector<wchar_t> pathBuffer;
@@ -44,7 +43,7 @@ static inline const std::filesystem::path configFilePath = c_exedir / "whichwad.
 static inline std::unordered_map<std::string, std::string> g_configs;
 
 
-static inline bool readConfigFile()
+static bool readConfigFile()
 {
     std::ifstream file;
     file.open(configFilePath);
@@ -84,7 +83,7 @@ static inline bool readConfigFile()
     return true;
 }
 
-static inline bool saveConfigFile()
+static bool saveConfigFile()
 {
     std::ofstream file;
     file.open(configFilePath);
@@ -94,8 +93,8 @@ static inline bool saveConfigFile()
         return false;
     }
 
-    for (auto& kv : g_configs)
-        file << kv.first << "=" << kv.second << "\n";
+    for (const auto& [key, value] : g_configs)
+        file << key << "=" << value << "\n";
 
     file.close();
     return true;
@@ -141,7 +140,7 @@ std::filesystem::path getSteamDir()
     {
         if (std::filesystem::is_directory(g_configs["steamdir"]))
             return g_configs["steamdir"];
-        logger.warning("\"%s\" is not a directory", g_configs["steamdir"]);
+        logger.warning("\"" + g_configs["steamdir"] + "\" is not a directory");
     }
 
     if (std::filesystem::is_directory(c_defaultSteamDir))
@@ -178,7 +177,7 @@ std::filesystem::path getSteamDir()
 
 std::string toLowerCase(std::string str)
 {
-    std::transform(str.begin(), str.end(), str.begin(), [] (unsigned char c) {
+    std::ranges::transform(str, str.begin(), [] (const unsigned char c) {
         return std::tolower(c);
     });
     return str;
@@ -186,7 +185,7 @@ std::string toLowerCase(std::string str)
 
 std::string toUpperCase(std::string str)
 {
-    std::transform(str.begin(), str.end(), str.begin(), [] (unsigned char c) {
+    std::ranges::transform(str, str.begin(), [] (const unsigned char c) {
         return std::toupper(c);
     });
     return str;
