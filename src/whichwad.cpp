@@ -2,6 +2,7 @@
 #include <ranges>
 #include <cstring>
 #include <iostream>
+#include <source_location>
 #include "utils.h"
 #include "whichwad.h"
 #include "logging.h"
@@ -160,22 +161,20 @@ void Options::checkGlobs() const
     {
         std::cout << "\r\033[1F\033[0KReading " << glob.string() << "\nFound " << g_options.foundMatches;
 
-        std::unique_ptr<BaseReader> reader;
-
         try
         {
             if (bsp)
-                std::make_unique<BspReader>(glob);
+                BspReader reader{ glob };
             else
-                std::make_unique<Wad3Reader>(glob);
+                Wad3Reader reader{ glob };
         }
         catch (const std::runtime_error& e)
         {
-            if (logger.getLevel() > Logging::LogLevel::LOG_DEBUG)
+            if (logger.getLevel() > Logging::LogLevel::Debug)
                 continue;
             std::cerr << "\r\033[1F\033[0K";  // Insert before WARNING prefix by logger
-            logger.warning("Could not read " + glob.string() + ". Reason: " + e.what());
-            std::cerr << "\033[1E";
+            logger.warning("Could not read " + glob.string() + ". Reason: " + e.what(), std::source_location());
+            std::cerr << std::endl;
         }
 
 
