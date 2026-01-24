@@ -13,6 +13,9 @@ namespace fs = std::filesystem;
 
 static Logging::Logger& logger = Logging::Logger::getLogger("whichwad");
 
+// Return, clear line, previous line, clear line
+static const char* c_resetTwoLines = "\r\033[0K\033[1F\033[0K";
+
 Options g_options{};
 std::atomic<int> g_receivedSignal = -1;
 
@@ -50,6 +53,11 @@ void Options::findGlobsInDir(const fs::path& dir)
         {
             if (const fs::path& entryPath = entry.path(); toLowerCase(entryPath.extension().string()) == ".bsp")
             {
+                if (g_options.absoluteDir)
+                {
+                    globs.insert(entryPath);
+                    continue;
+                }
                 fs::path shortGlob = entryPath.parent_path().parent_path().parent_path().stem()
                     / entryPath.parent_path().parent_path().stem() / entryPath.parent_path().stem() / entryPath.filename();
                 globs.insert(shortGlob);
@@ -65,6 +73,12 @@ void Options::findGlobsInDir(const fs::path& dir)
         {
             if (std::ranges::find(c_WadSkipList, toLowerCase(entryPath.stem().string())) != c_WadSkipList.end())
                 continue;
+
+            if (g_options.absoluteDir)
+            {
+                globs.insert(entryPath);
+                continue;
+            }
 
             fs::path shortGlob = entryPath.parent_path().parent_path().stem()
                 / entryPath.parent_path().stem() / entryPath.filename();
@@ -124,6 +138,7 @@ void Options::findGlobs()
 {
     if (fs::is_directory(g_options.steamDir) && !fs::is_directory(g_options.steamCommonDir))
     {
+        g_options.absoluteDir = true;
         findGlobsInDir(g_options.steamDir);
         return;
     }
@@ -155,11 +170,10 @@ void Options::findGlobs()
 
 void Options::checkGlobs() const
 {
-    std::cout << "\033[1E";
-
     for (const auto& glob : globs)
     {
-        std::cout << "\r\033[1F\033[0KReading " << glob.string() << "\nFound " << g_options.foundMatches;
+        std::cout << "Reading "
+            << (g_options.absoluteDir ? glob.filename() : glob).string() << "\nFound " << g_options.foundMatches;
 
         try
         {
@@ -172,18 +186,15 @@ void Options::checkGlobs() const
         {
             if (logger.getLevel() > Logging::LogLevel::Debug)
                 continue;
-            std::cerr << "\r\033[1F\033[0K";  // Insert before WARNING prefix by logger
+            std::cerr << c_resetTwoLines;  // Insert before WARNING prefix by logger
             logger.warning("Could not read " + glob.string() + ". Reason: " + e.what(), std::source_location());
-            std::cerr << std::endl;
         }
-
 
         if ((g_receivedSignal != -1))
             break;
+
+        std::cout << c_resetTwoLines;
     }
-
-
-    std::cout << "\r\033[1F\033[0K" << std::endl;
 }
 
 

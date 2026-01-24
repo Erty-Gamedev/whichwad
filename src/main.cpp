@@ -86,6 +86,12 @@ static void handleArgs(const int argc, char* argv[])
             g_options.bsp = true;
             continue;
         }
+        if (strcmp(argv[i], "--verbose") == 0)
+        {
+            logger.setLevel(Logging::LogLevel::Debug);
+            logger.setConsoleHandlerLevel(Logging::LogLevel::Debug);
+            continue;
+        }
 
         if (strncmp(argv[i], "-", 1) == 0)
         {

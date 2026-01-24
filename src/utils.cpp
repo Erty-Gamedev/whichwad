@@ -118,6 +118,7 @@ void printUsage()
         << " --steamdir  -s    (path)    Steam directory to use for this search\n"
         << " --mod       -m    (text)    check this mod only\n"
         << " --bsp       -b    (text)    search textures embedded in BSP files instead\n"
+        << " --verbose                   enable verbose (debug) logging\n"
         << std::endl;
 }
 

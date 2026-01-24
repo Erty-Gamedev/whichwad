@@ -35,6 +35,7 @@ struct Options
     bool bsp = false;
     bool extract = false;
     bool everything = false;
+    bool absoluteDir = false;
     std::vector<std::string> mods;
     std::vector<TextureTest> tests;
     std::filesystem::path gamePath;
