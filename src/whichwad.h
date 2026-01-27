@@ -21,6 +21,7 @@ struct TextureTest
     std::string filter;
     bool hasWildcard = false;
     size_t wildcardPos = std::string::npos;
+    size_t wildcardRPos = std::string::npos;
     std::unordered_map<textureMatch, std::vector<readerPath>> matches;
 
     explicit TextureTest(const std::string& _filter);

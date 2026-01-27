@@ -23,21 +23,36 @@ std::atomic<int> g_receivedSignal = -1;
 TextureTest::TextureTest(const std::string& _filter) : filter(toLowerCase(_filter))
 {
     wildcardPos = filter.find('*');
+    wildcardRPos = filter.rfind('*');
     hasWildcard = wildcardPos != std::string::npos;
+
+    if (!hasWildcard)
+        return;  // Early return, the next checks are for if it has wildcard only
+
+    if (wildcardPos + 1 == wildcardRPos)
+        throw std::runtime_error("Contains filter cannot be empty");
+
+    if (wildcardPos > 0 && wildcardPos < filter.size() - 1)
+        throw std::runtime_error("Wildcard ('*') is only allowed at start and end of a search term");
 }
 
 bool TextureTest::test(const std::string_view& textureName) const
 {
-    if (filter.length() > (textureName.length() + 1))
-        return false;
+    size_t texNameLength = textureName.length();
 
     if (!hasWildcard)
-        return textureName == filter;
+        return filter.length() == texNameLength && textureName == filter;
+
+    if (wildcardPos != wildcardRPos)
+        return filter.length() <= texNameLength + 2 && textureName.find(filter.substr(wildcardPos + 1, wildcardRPos - 1)) != std::string::npos;
+
+    if (filter.length() > (texNameLength + 1))
+        return false;
 
     if (wildcardPos == 0)
     {
         const size_t searchLength = filter.length() - 1;
-        return textureName.compare(textureName.length() - searchLength, searchLength, filter.substr(1, searchLength)) == 0;
+        return textureName.compare(texNameLength - searchLength, searchLength, filter.substr(1, searchLength)) == 0;
     }
 
     return textureName.compare(0, wildcardPos, filter.substr(0, wildcardPos)) == 0;

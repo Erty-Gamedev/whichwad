@@ -5,7 +5,6 @@
 #include "whichwad.h"
 #include "logging.h"
 
-int _CRT_glob = 0;
 
 #ifndef WHICHWAD_NAME_VERSION
 #define WHICHWAD_NAME_VERSION "Which Wad v0.0.0"
@@ -102,7 +101,7 @@ static void handleArgs(const int argc, char* argv[])
 
         if (strcmp(argv[i], "*") == 0)
         {
-            std::cout << Styling::style(Styling::bold) << "'*' will match everything. Are you sure? (y/N) " << Styling::style();
+            std::cout << style(Styling::bold) << "'*' will match everything. Are you sure? (y/N) " << style();
 
             if (!confirm_dialogue(false))
             {
@@ -113,7 +112,10 @@ static void handleArgs(const int argc, char* argv[])
             g_options.everything = true;
         }
 
-        g_options.tests.emplace_back(argv[i]);
+        try
+        { g_options.tests.emplace_back(argv[i]); }
+        catch (const std::runtime_error& e)
+        { logger.warning({ "Invalid filter \"%s\": %s", std::source_location() }, argv[i], e.what()); }
     }
 
     if (g_options.tests.empty())
